@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"/>
@@ -13,6 +12,7 @@
             --success-color: #34C759;
             --danger-color: #FF3B30;
             --warning-color: #FF9500;
+            --info-color: #5AC8FA;
             --bg-color: #F2F2F7;
             --card-bg: #FFFFFF;
             --text-primary: #000000;
@@ -27,6 +27,7 @@
             --success-color: #30D158;
             --danger-color: #FF453A;
             --warning-color: #FFD60A;
+            --info-color: #66CCFF;
             --bg-color: #000000;
             --card-bg: #1C1C1E;
             --text-primary: #FFFFFF;
@@ -257,6 +258,7 @@
             align-items: center;
             padding: 15px 0;
             border-bottom: 1px solid var(--border-color);
+            position: relative;
         }
         .bill-item:last-child { border-bottom: none; }
         
@@ -267,6 +269,23 @@
         .bill-amount { font-weight: 600; font-size: 16px; }
         .bill-amount.income { color: var(--success-color); }
         .bill-amount.expense { color: var(--text-primary); }
+        
+        .bill-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        
+        .edit-btn { color: var(--info-color); }
+        .delete-btn { color: var(--danger-color); }
 
         /* Stats Page */
         .chart-container { width: 100%; height: 300px; margin-top: 20px; }
@@ -276,7 +295,7 @@
         .stat-value { font-size: 18px; font-weight: bold; }
 
         /* Savings Page */
-        .goal-item { margin-bottom: 15px; }
+        .goal-item { margin-bottom: 15px; position: relative; }
         .goal-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .progress-bar { height: 8px; background: var(--bg-color); border-radius: 4px; overflow: hidden; }
         .progress-fill { height: 100%; background: var(--success-color); border-radius: 4px; transition: width 0.5s; }
@@ -345,127 +364,508 @@
             margin-top: 5px;
             display: none;
         }
-    </style>
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-color);
+            color: var(--text-primary);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-color);
+            color: var(--text-primary);
+        }
+        
+        .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-color);
+            color: var(--text-primary);
+        }
+        
+        /* Budget Section */
+        .budget-section {
+            margin-bottom: 20px;
+        }
+        
+        .budget-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .budget-info {
+            flex: 1;
+        }
+        
+        .budget-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .budget-amount {
+            font-weight: bold;
+        }
+        
+        .budget-progress {
+            height: 6px;
+            background: var(--bg-color);
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        
+        .budget-progress-fill {
+            height: 100%;
+            background: var(--success-color);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        
+        /* Filter Controls */
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-btn {
+            flex: 1;
+            padding: 10px;
+            background: var(--bg-color);
+            border: none;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        
+        .filter-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        /* Account Section */
+        .account-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .account-info {
+            flex: 1;
+        }
+        
+        .account-balance {
+            font-weight: bold;
+            color: var(--success-color);
+        }
+        
+        .account-actions {
+            display: flex;
+            gap: 10px;
+        }
+</style>
 </head>
 <body>
 <!-- Toast Notification -->
 <div id="toast">操作成功</div>
+
+<!-- Edit Bill Modal -->
+<div class="modal" id="edit-bill-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">编辑账单</div>
+            <button class="close-modal" onclick="closeModal('edit-bill-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">类型</label>
+                <select class="form-select" id="edit-bill-type">
+                    <option value="expense">支出</option>
+                    <option value="income">收入</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">金额</label>
+                <input class="form-input" type="number" step="0.01" id="edit-bill-amount" placeholder="请输入金额">
+            </div>
+            <div class="form-group">
+                <label class="form-label">分类</label>
+                <select class="form-select" id="edit-bill-category">
+                    <!-- Filled by JavaScript -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">备注</label>
+                <input class="form-input" type="text" id="edit-bill-note" placeholder="备注（选填）">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('edit-bill-modal')">取消</button>
+            <button class="btn btn-primary" onclick="saveEditedBill()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Goal Modal -->
+<div class="modal" id="add-goal-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">添加存钱目标</div>
+            <button class="close-modal" onclick="closeModal('add-goal-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">目标名称</label>
+                <input class="form-input" type="text" id="goal-name" placeholder="请输入目标名称">
+            </div>
+            <div class="form-group">
+                <label class="form-label">目标金额</label>
+                <input class="form-input" type="number" step="0.01" id="goal-target" placeholder="请输入目标金额">
+            </div>
+            <div class="form-group">
+                <label class="form-label">当前金额</label>
+                <input class="form-input" type="number" step="0.01" id="goal-current" placeholder="请输入当前金额">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('add-goal-modal')">取消</button>
+            <button class="btn btn-primary" onclick="addGoal()">添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Budget Modal -->
+<div class="modal" id="add-budget-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">添加预算</div>
+            <button class="close-modal" onclick="closeModal('add-budget-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">分类</label>
+                <select class="form-select" id="budget-category">
+                    <!-- Filled by JavaScript -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">预算金额</label>
+                <input class="form-input" type="number" step="0.01" id="budget-amount" placeholder="请输入预算金额">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('add-budget-modal')">取消</button>
+            <button class="btn btn-primary" onclick="addBudget()">添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- Backup/Restore Modal -->
+<div class="modal" id="backup-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">数据备份与恢复</div>
+            <button class="close-modal" onclick="closeModal('backup-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">备份数据</label>
+                <textarea class="form-input" id="backup-data" rows="6" readonly></textarea>
+                <button class="btn btn-primary" onclick="copyBackupData()" style="margin-top: 10px;">复制数据</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">恢复数据</label>
+                <textarea class="form-input" id="restore-data" rows="6" placeholder="粘贴备份数据"></textarea>
+                <button class="btn btn-primary" onclick="restoreData()" style="margin-top: 10px;">恢复数据</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('backup-modal')">关闭</button>
+        </div>
+    </div>
+</div>
+
 <!-- Page: Home -->
 <div class="page active" id="page-home">
-<header style="margin-bottom: 20px;">
-<h1 style="font-size: 24px;">记一笔</h1>
-<p class="text-secondary" id="current-date">2026年3月27日</p>
-</header>
-<!-- Add Bill Module -->
-<div class="add-bill-container">
-<!-- Type Switch -->
-<div class="type-switch">
-<div class="type-option active expense" data-type="expense" onclick="setBillType('expense')">支出</div>
-<div class="type-option" data-type="income" onclick="setBillType('income')">收入</div>
+    <header style="margin-bottom: 20px;">
+        <h1 style="font-size: 24px;">记一笔</h1>
+        <p class="text-secondary" id="current-date">2026年3月27日</p>
+    </header>
+    <!-- Add Bill Module -->
+    <div class="add-bill-container">
+        <!-- Type Switch -->
+        <div class="type-switch">
+            <div class="type-option active expense" data-type="expense" onclick="setBillType('expense')">支出</div>
+            <div class="type-option" data-type="income" onclick="setBillType('income')">收入</div>
+        </div>
+        <!-- Amount Input -->
+        <div class="amount-input-group">
+            <span class="currency-symbol">¥</span>
+            <input class="amount-input has-symbol" id="amount" inputmode="decimal" placeholder="0.00" type="number"/>
+            <div class="error-msg" id="amount-error">请输入有效的金额（大于0，最多两位小数）</div>
+        </div>
+        <!-- Category Grid -->
+        <div class="category-grid" id="category-grid">
+            <!-- Categories injected by JS -->
+        </div>
+        <!-- Note Input -->
+        <input class="note-input" id="note" placeholder="写点备注...（选填）" type="text"/>
+        <!-- Submit Button -->
+        <button class="btn-submit" onclick="submitBill()">确认记账 (可继续)</button>
+    </div>
+    <!-- Recent Summary Widget -->
+    <div class="card" style="margin-top: 20px;">
+        <h3>今日概览</h3>
+        <div class="stat-summary">
+            <div class="stat-box">
+                <div class="stat-label">支出</div>
+                <div class="stat-value expense" id="today-expense">¥0.00</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">收入</div>
+                <div class="stat-value income" id="today-income">¥0.00</div>
+            </div>
+        </div>
+    </div>
 </div>
-<!-- Amount Input -->
-<div class="amount-input-group">
-<span class="currency-symbol">¥</span>
-<input class="amount-input has-symbol" id="amount" inputmode="decimal" placeholder="0.00" type="number"/>
-<div class="error-msg" id="amount-error">请输入有效的金额（大于0，最多两位小数）</div>
-</div>
-<!-- Category Grid -->
-<div class="category-grid" id="category-grid">
-<!-- Categories injected by JS -->
-</div>
-<!-- Note Input -->
-<input class="note-input" id="note" placeholder="写点备注...（选填）" type="text"/>
-<!-- Submit Button -->
-<button class="btn-submit" onclick="submitBill()">确认记账 (可继续)</button>
-</div>
-<!-- Recent Summary Widget -->
-<div class="card" style="margin-top: 20px;">
-<h3>今日概览</h3>
-<div class="stat-summary">
-<div class="stat-box">
-<div class="stat-label">支出</div>
-<div class="stat-value expense" id="today-expense">¥0.00</div>
-</div>
-<div class="stat-box">
-<div class="stat-label">收入</div>
-<div class="stat-value income" id="today-income">¥0.00</div>
-</div>
-</div>
-</div>
-</div>
+
 <!-- Page: Bills -->
 <div class="page" id="page-bills">
-<h1>账单明细</h1>
-<div class="card">
-<div id="bills-list">
-<!-- Bills injected by JS -->
+    <h1>账单明细</h1>
+    <div class="filter-controls">
+        <button class="filter-btn active" data-filter="all" onclick="setBillFilter('all')">全部</button>
+        <button class="filter-btn" data-filter="expense" onclick="setBillFilter('expense')">支出</button>
+        <button class="filter-btn" data-filter="income" onclick="setBillFilter('income')">收入</button>
+    </div>
+    <div class="card">
+        <div id="bills-list">
+            <!-- Bills injected by JS -->
+        </div>
+    </div>
 </div>
-</div>
-</div>
+
 <!-- Page: Stats -->
 <div class="page" id="page-stats">
-<h1>收支统计</h1>
-<div class="card">
-<div class="stat-summary">
-<div class="stat-box">
-<div class="stat-label">本月支出</div>
-<div class="stat-value expense" id="month-expense">¥0.00</div>
+    <h1>收支统计</h1>
+    <div class="card">
+        <div class="stat-summary">
+            <div class="stat-box">
+                <div class="stat-label">本月支出</div>
+                <div class="stat-value expense" id="month-expense">¥0.00</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">本月收入</div>
+                <div class="stat-value income" id="month-income">¥0.00</div>
+            </div>
+        </div>
+        <div class="chart-container" id="chart-main"></div>
+        <div class="chart-container" id="chart-category"></div>
+    </div>
 </div>
-<div class="stat-box">
-<div class="stat-label">本月收入</div>
-<div class="stat-value income" id="month-income">¥0.00</div>
-</div>
-</div>
-<div class="chart-container" id="chart-main"></div>
-</div>
-</div>
+
 <!-- Page: Savings -->
 <div class="page" id="page-savings">
-<h1>存钱目标</h1>
-<div class="card" id="goals-list">
-<!-- Goals injected by JS -->
+    <h1>存钱目标</h1>
+    <div class="card">
+        <button class="btn btn-primary" onclick="openAddGoalModal()" style="width: 100%; margin-bottom: 15px;">+ 添加目标</button>
+        <div id="goals-list">
+            <!-- Goals injected by JS -->
+        </div>
+    </div>
+    
+    <h1>预算管理</h1>
+    <div class="card budget-section">
+        <button class="btn btn-primary" onclick="openAddBudgetModal()" style="width: 100%; margin-bottom: 15px;">+ 添加预算</button>
+        <div id="budgets-list">
+            <!-- Budgets injected by JS -->
+        </div>
+    </div>
 </div>
+
+<!-- Page: Accounts -->
+<div class="page" id="page-accounts">
+    <h1>账户管理</h1>
+    <div class="card">
+        <div class="account-item">
+            <div class="account-info">
+                <div>现金</div>
+                <div class="text-secondary">Cash</div>
+            </div>
+            <div class="account-balance" id="cash-balance">¥0.00</div>
+            <div class="account-actions">
+                <button class="action-btn edit-btn" onclick="transferFunds('cash')">转账</button>
+            </div>
+        </div>
+        <div class="account-item">
+            <div class="account-info">
+                <div>银行卡</div>
+                <div class="text-secondary">Bank Card</div>
+            </div>
+            <div class="account-balance" id="bank-balance">¥0.00</div>
+            <div class="account-actions">
+                <button class="action-btn edit-btn" onclick="transferFunds('bank')">转账</button>
+            </div>
+        </div>
+        <div class="account-item">
+            <div class="account-info">
+                <div>支付宝</div>
+                <div class="text-secondary">Alipay</div>
+            </div>
+            <div class="account-balance" id="alipay-balance">¥0.00</div>
+            <div class="account-actions">
+                <button class="action-btn edit-btn" onclick="transferFunds('alipay')">转账</button>
+            </div>
+        </div>
+        <div class="account-item">
+            <div class="account-info">
+                <div>微信支付</div>
+                <div class="text-secondary">WeChat Pay</div>
+            </div>
+            <div class="account-balance" id="wechat-balance">¥0.00</div>
+            <div class="account-actions">
+                <button class="action-btn edit-btn" onclick="transferFunds('wechat')">转账</button>
+            </div>
+        </div>
+    </div>
 </div>
+
 <!-- Page: Settings -->
 <div class="page" id="page-settings">
-<h1>设置</h1>
-<div class="card">
-<div class="setting-item">
-<span>深色模式</span>
-<div class="setting-switch" id="theme-toggle" onclick="toggleTheme()"></div>
-</div>
-<div class="setting-item" onclick="clearData()">
-<span style="color: var(--danger-color);">清空所有数据</span>
-<span>&gt;</span>
-</div>
-</div>
-<div class="text-secondary text-center" style="margin-top: 20px; font-size: 12px;">
-            Version 1.0.0
+    <h1>设置</h1>
+    <div class="card">
+        <div class="setting-item">
+            <span>深色模式</span>
+            <div class="setting-switch" id="theme-toggle" onclick="toggleTheme()"></div>
         </div>
+        <div class="setting-item" onclick="openBackupModal()">
+            <span>数据备份与恢复</span>
+            <span>&gt;</span>
+        </div>
+        <div class="setting-item" onclick="clearData()">
+            <span style="color: var(--danger-color);">清空所有数据</span>
+            <span>&gt;</span>
+        </div>
+    </div>
+    <div class="text-secondary text-center" style="margin-top: 20px; font-size: 12px;">
+        Version 2.0.0
+    </div>
 </div>
+
 <!-- Bottom Navigation -->
 <nav class="tab-bar">
-<div class="tab-item active" onclick="switchPage('home')">
-<div class="tab-icon">🏠</div>
-<div>首页</div>
-</div>
-<div class="tab-item" onclick="switchPage('bills')">
-<div class="tab-icon">🧾</div>
-<div>账单</div>
-</div>
-<div class="tab-item" onclick="switchPage('stats')">
-<div class="tab-icon">📊</div>
-<div>统计</div>
-</div>
-<div class="tab-item" onclick="switchPage('savings')">
-<div class="tab-icon">💰</div>
-<div>存钱</div>
-</div>
-<div class="tab-item" onclick="switchPage('settings')">
-<div class="tab-icon">⚙️</div>
-<div>设置</div>
-</div>
+    <div class="tab-item active" onclick="switchPage('home')">
+        <div class="tab-icon">🏠</div>
+        <div>首页</div>
+    </div>
+    <div class="tab-item" onclick="switchPage('bills')">
+        <div class="tab-icon">🧾</div>
+        <div>账单</div>
+    </div>
+    <div class="tab-item" onclick="switchPage('stats')">
+        <div class="tab-icon">📊</div>
+        <div>统计</div>
+    </div>
+    <div class="tab-item" onclick="switchPage('savings')">
+        <div class="tab-icon">💰</div>
+        <div>存钱</div>
+    </div>
+    <div class="tab-item" onclick="switchPage('accounts')">
+        <div class="tab-icon">💳</div>
+        <div>账户</div>
+    </div>
+    <div class="tab-item" onclick="switchPage('settings')">
+        <div class="tab-icon">⚙️</div>
+        <div>设置</div>
+    </div>
 </nav>
+
 <script>
         // --- Data Definitions ---
         const CATEGORIES = {
@@ -475,11 +875,14 @@
                 { id: 'shopping', name: '购物', icon: '🛍️' },
                 { id: 'entertainment', name: '娱乐', icon: '🎮' },
                 { id: 'housing', name: '住房', icon: '🏠' },
+                { id: 'medical', name: '医疗', icon: '🏥' },
+                { id: 'education', name: '教育', icon: '📚' },
                 { id: 'other', name: '其他', icon: '📝' }
             ],
             income: [
                 { id: 'salary', name: '工资', icon: '💰' },
                 { id: 'investment', name: '理财', icon: '📈' },
+                { id: 'gift', name: '礼物', icon: '🎁' },
                 { id: 'other', name: '其他', icon: '📝' }
             ]
         };
@@ -495,18 +898,27 @@
             fixedExpenses: [],
             wishes: [],
             budgets: { total: 0, categoryBudgets: {} },
-            settings: { currency: '¥', theme: 'light' }
+            settings: { currency: '¥', theme: 'light' },
+            accounts: {
+                cash: { name: '现金', balance: 0 },
+                bank: { name: '银行卡', balance: 0 },
+                alipay: { name: '支付宝', balance: 0 },
+                wechat: { name: '微信支付', balance: 0 }
+            }
         };
 
         let prefs = {
             lastType: 'expense',
-            lastCategory: 'food'
+            lastCategory: 'food',
+            billFilter: 'all'
         };
 
         let currentBillState = {
             type: 'expense',
             category: 'food'
         };
+
+        let editingBillId = null;
 
         // --- Initialization ---
         function init() {
@@ -526,6 +938,8 @@
             renderBills();
             renderStats();
             renderGoals();
+            renderBudgets();
+            renderAccounts();
             renderTodaySummary();
         }
 
@@ -580,11 +994,15 @@
                 renderStats();
                 setTimeout(initChart, 100); // Delay for DOM rendering
             }
-            if (pageId === 'savings') renderGoals();
+            if (pageId === 'savings') {
+                renderGoals();
+                renderBudgets();
+            }
+            if (pageId === 'accounts') renderAccounts();
         }
 
         function getPageName(id) {
-            const map = { 'home': '首页', 'bills': '账单', 'stats': '统计', 'savings': '存钱', 'settings': '设置' };
+            const map = { 'home': '首页', 'bills': '账单', 'stats': '统计', 'savings': '存钱', 'accounts': '账户', 'settings': '设置' };
             return map[id];
         }
 
@@ -685,6 +1103,7 @@
 
             // Update Home Summary
             renderTodaySummary();
+            renderStats();
         }
 
         function renderTodaySummary() {
@@ -704,6 +1123,18 @@
         }
 
         // --- UI Logic: Bills Page ---
+        function setBillFilter(filter) {
+            prefs.billFilter = filter;
+            savePrefs();
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            renderBills();
+        }
+
         function renderBills() {
             const container = document.getElementById('bills-list');
             container.innerHTML = '';
@@ -717,7 +1148,13 @@
                 return;
             }
 
-            appData.bills.forEach(bill => {
+            // Filter bills based on preference
+            let filteredBills = appData.bills;
+            if (prefs.billFilter !== 'all') {
+                filteredBills = appData.bills.filter(bill => bill.type === prefs.billFilter);
+            }
+
+            filteredBills.forEach(bill => {
                 const catInfo = getCategoryInfo(bill.type, bill.category);
                 const dateObj = new Date(bill.date);
                 const dateStr = `${dateObj.getMonth()+1}-${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
@@ -735,9 +1172,80 @@
                     <div class="bill-amount ${bill.type}">
                         ${bill.type === 'expense' ? '-' : '+'}${formatMoney(bill.amount)}
                     </div>
+                    <div class="bill-actions">
+                        <button class="action-btn edit-btn" onclick="editBill(${bill.id})">✏️</button>
+                        <button class="action-btn delete-btn" onclick="deleteBill(${bill.id})">🗑️</button>
+                    </div>
                 `;
                 container.appendChild(div);
             });
+        }
+
+        function editBill(billId) {
+            const bill = appData.bills.find(b => b.id === billId);
+            if (!bill) return;
+            
+            editingBillId = billId;
+            
+            document.getElementById('edit-bill-type').value = bill.type;
+            document.getElementById('edit-bill-amount').value = bill.amount;
+            document.getElementById('edit-bill-note').value = bill.note || '';
+            
+            // Populate category options
+            const categorySelect = document.getElementById('edit-bill-category');
+            categorySelect.innerHTML = '';
+            const categories = CATEGORIES[bill.type];
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                if (cat.id === bill.category) {
+                    option.selected = true;
+                }
+                categorySelect.appendChild(option);
+            });
+            
+            document.getElementById('edit-bill-modal').style.display = 'flex';
+        }
+
+        function saveEditedBill() {
+            const type = document.getElementById('edit-bill-type').value;
+            const amount = parseFloat(document.getElementById('edit-bill-amount').value);
+            const category = document.getElementById('edit-bill-category').value;
+            const note = document.getElementById('edit-bill-note').value;
+            
+            if (isNaN(amount) || amount <= 0) {
+                showToast('请输入有效金额');
+                return;
+            }
+            
+            const index = appData.bills.findIndex(b => b.id === editingBillId);
+            if (index !== -1) {
+                appData.bills[index] = {
+                    ...appData.bills[index],
+                    type,
+                    amount,
+                    category,
+                    note
+                };
+                saveData();
+                closeModal('edit-bill-modal');
+                renderBills();
+                renderStats();
+                renderTodaySummary();
+                showToast('账单已更新');
+            }
+        }
+
+        function deleteBill(billId) {
+            if (confirm('确定要删除这条账单吗？')) {
+                appData.bills = appData.bills.filter(bill => bill.id !== billId);
+                saveData();
+                renderBills();
+                renderStats();
+                renderTodaySummary();
+                showToast('账单已删除');
+            }
         }
 
         // --- UI Logic: Stats Page ---
@@ -762,12 +1270,14 @@
         }
 
         let chartInstance = null;
+        let categoryChartInstance = null;
+        
         function initChart() {
+            // Main chart - daily expenses
             const dom = document.getElementById('chart-main');
             if (!dom) return;
             
             if (chartInstance) chartInstance.dispose();
-
             chartInstance = echarts.init(dom);
             
             // Prepare last 7 days data
@@ -807,6 +1317,61 @@
             }
 
             chartInstance.setOption(option);
+            
+            // Category chart - monthly expenses by category
+            const categoryDom = document.getElementById('chart-category');
+            if (!categoryDom) return;
+            
+            if (categoryChartInstance) categoryChartInstance.dispose();
+            categoryChartInstance = echarts.init(categoryDom);
+            
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            // Calculate expenses by category
+            const categoryExpenses = {};
+            appData.bills.forEach(bill => {
+                const d = new Date(bill.date);
+                if (d.getMonth() === currentMonth && d.getFullYear() === currentYear && bill.type === 'expense') {
+                    if (!categoryExpenses[bill.category]) {
+                        categoryExpenses[bill.category] = 0;
+                    }
+                    categoryExpenses[bill.category] += bill.amount;
+                }
+            });
+            
+            const categoryNames = Object.keys(categoryExpenses);
+            const categoryValues = Object.values(categoryExpenses);
+            
+            const categoryOption = {
+                color: ['#FF3B30', '#FF9500', '#5AC8FA', '#34C759', '#AF52DE', '#FFD60A', '#FF2D55', '#007AFF'],
+                tooltip: { trigger: 'item' },
+                legend: { orient: 'vertical', left: 'left' },
+                series: [{
+                    name: '支出分类',
+                    type: 'pie',
+                    radius: '50%',
+                    data: categoryNames.map((name, index) => ({
+                        value: categoryValues[index],
+                        name: getCategoryInfo('expense', name).name
+                    })),
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            if (document.body.getAttribute('data-theme') === 'dark') {
+                categoryOption.darkMode = true;
+                categoryOption.textStyle = { color: '#fff' };
+            }
+            
+            categoryChartInstance.setOption(categoryOption);
         }
 
         // --- UI Logic: Savings Page ---
@@ -840,6 +1405,180 @@
             });
         }
 
+        function openAddGoalModal() {
+            document.getElementById('goal-name').value = '';
+            document.getElementById('goal-target').value = '';
+            document.getElementById('goal-current').value = '0';
+            document.getElementById('add-goal-modal').style.display = 'flex';
+        }
+
+        function addGoal() {
+            const name = document.getElementById('goal-name').value;
+            const target = parseFloat(document.getElementById('goal-target').value);
+            const current = parseFloat(document.getElementById('goal-current').value) || 0;
+            
+            if (!name || isNaN(target) || target <= 0) {
+                showToast('请输入有效的目标信息');
+                return;
+            }
+            
+            appData.goals.push({
+                id: Date.now(),
+                name,
+                target,
+                current
+            });
+            saveData();
+            closeModal('add-goal-modal');
+            renderGoals();
+            showToast('目标已添加');
+        }
+
+        function renderBudgets() {
+            const container = document.getElementById('budgets-list');
+            container.innerHTML = '';
+
+            if (Object.keys(appData.budgets.categoryBudgets).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <div>暂无预算设置</div>
+                    </div>`;
+                return;
+            }
+
+            // Get current month's expenses by category
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            const monthlyExpenses = {};
+            appData.bills.forEach(bill => {
+                if (bill.type === 'expense') {
+                    const d = new Date(bill.date);
+                    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                        if (!monthlyExpenses[bill.category]) {
+                            monthlyExpenses[bill.category] = 0;
+                        }
+                        monthlyExpenses[bill.category] += bill.amount;
+                    }
+                }
+            });
+
+            for (const [categoryId, budgetAmount] of Object.entries(appData.budgets.categoryBudgets)) {
+                const catInfo = getCategoryInfo('expense', categoryId);
+                const spent = monthlyExpenses[categoryId] || 0;
+                const percent = Math.min(100, (spent / budgetAmount) * 100).toFixed(1);
+                
+                const div = document.createElement('div');
+                div.className = 'budget-item';
+                div.innerHTML = `
+                    <div class="budget-info">
+                        <div>${catInfo.name}</div>
+                        <div class="text-secondary">${formatMoney(spent)} / ${formatMoney(budgetAmount)}</div>
+                        <div class="budget-progress">
+                            <div class="budget-progress-fill" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                    <div class="budget-controls">
+                        <button class="btn btn-secondary" onclick="editBudget('${categoryId}')">编辑</button>
+                        <button class="btn btn-secondary" onclick="deleteBudget('${categoryId}')">删除</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        function openAddBudgetModal() {
+            const select = document.getElementById('budget-category');
+            select.innerHTML = '';
+            
+            CATEGORIES.expense.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                select.appendChild(option);
+            });
+            
+            document.getElementById('budget-amount').value = '';
+            document.getElementById('add-budget-modal').style.display = 'flex';
+        }
+
+        function addBudget() {
+            const categoryId = document.getElementById('budget-category').value;
+            const amount = parseFloat(document.getElementById('budget-amount').value);
+            
+            if (isNaN(amount) || amount <= 0) {
+                showToast('请输入有效预算金额');
+                return;
+            }
+            
+            appData.budgets.categoryBudgets[categoryId] = amount;
+            saveData();
+            closeModal('add-budget-modal');
+            renderBudgets();
+            showToast('预算已添加');
+        }
+
+        function editBudget(categoryId) {
+            const amount = appData.budgets.categoryBudgets[categoryId];
+            document.getElementById('budget-category').value = categoryId;
+            document.getElementById('budget-amount').value = amount;
+            document.getElementById('add-budget-modal').style.display = 'flex';
+            
+            // Remove the category from the list so it can't be selected again
+            const select = document.getElementById('budget-category');
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === categoryId) {
+                    select.removeChild(select.options[i]);
+                    break;
+                }
+            }
+        }
+
+        function deleteBudget(categoryId) {
+            if (confirm('确定要删除这个预算吗？')) {
+                delete appData.budgets.categoryBudgets[categoryId];
+                saveData();
+                renderBudgets();
+                showToast('预算已删除');
+            }
+        }
+
+        // --- UI Logic: Accounts Page ---
+        function renderAccounts() {
+            // Calculate account balances from bills
+            let cashBalance = 0;
+            let bankBalance = 0;
+            let alipayBalance = 0;
+            let wechatBalance = 0;
+            
+            appData.bills.forEach(bill => {
+                // For now, assume all expenses come from cash and all income goes to cash
+                // In a real app, you'd track which account each transaction came from
+                if (bill.type === 'expense') {
+                    cashBalance -= bill.amount;
+                } else {
+                    cashBalance += bill.amount;
+                }
+            });
+            
+            document.getElementById('cash-balance').textContent = formatMoney(cashBalance);
+            document.getElementById('bank-balance').textContent = formatMoney(bankBalance);
+            document.getElementById('alipay-balance').textContent = formatMoney(alipayBalance);
+            document.getElementById('wechat-balance').textContent = formatMoney(wechatBalance);
+            
+            // Update global account balances
+            appData.accounts.cash.balance = cashBalance;
+            appData.accounts.bank.balance = bankBalance;
+            appData.accounts.alipay.balance = alipayBalance;
+            appData.accounts.wechat.balance = wechatBalance;
+        }
+
+        function transferFunds(accountId) {
+            showToast(`${appData.accounts[accountId].name}转账功能待完善`);
+        }
+
         // --- UI Logic: Settings & Theme ---
         function toggleTheme() {
             const current = appData.settings.theme;
@@ -858,6 +1597,33 @@
             else toggle.classList.remove('on');
         }
 
+        function openBackupModal() {
+            const backupData = JSON.stringify(appData, null, 2);
+            document.getElementById('backup-data').value = backupData;
+            document.getElementById('backup-modal').style.display = 'flex';
+        }
+
+        function copyBackupData() {
+            const textarea = document.getElementById('backup-data');
+            textarea.select();
+            document.execCommand('copy');
+            showToast('数据已复制到剪贴板');
+        }
+
+        function restoreData() {
+            const restoreTextarea = document.getElementById('restore-data');
+            const data = restoreTextarea.value;
+            
+            try {
+                const parsed = JSON.parse(data);
+                appData = { ...appData, ...parsed };
+                saveData();
+                location.reload();
+            } catch (e) {
+                showToast('数据格式错误，无法恢复');
+            }
+        }
+
         function clearData() {
             if(confirm('确定要清空所有数据吗？此操作无法撤销。')) {
                 localStorage.removeItem(STORAGE_KEY);
@@ -865,6 +1631,18 @@
                 location.reload();
             }
         }
+
+        // --- Modal Functions ---
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        };
 
         // --- Utilities ---
         function getCategoryInfo(type, id) {
