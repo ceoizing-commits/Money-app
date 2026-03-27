@@ -271,6 +271,7 @@ function submitBill() {
     renderTodaySummary();
     renderStats();
     renderBudgetAndSavings();
+    renderBills();
     
     // Trigger AI analysis update if enabled
     if (appData.settings.enableAI) {
@@ -295,15 +296,18 @@ function renderTodaySummary() {
 }
 
 // --- UI Logic: Bills Page ---
-function setBillFilter(filter) {
+function setBillFilter(filter, btn) {
     prefs.billFilter = filter;
     savePrefs();
-    
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
+
+    document.querySelectorAll('.filter-btn').forEach(button => {
+        button.classList.remove('active');
     });
-    event.target.classList.add('active');
-    
+
+    if (btn) {
+        btn.classList.add('active');
+    }
+
     renderBills();
 }
 
