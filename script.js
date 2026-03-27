@@ -1,14 +1,27 @@
-// ==================== Data & State ====================
+// --- Data Definitions ---
 const CATEGORIES = {
-    expense: ['餐饮', '交通', '购物', '娱乐', '住房', '其他'],
-    income: ['工资', '理财', '其他']
+    expense: [
+        { id: 'food', name: '餐饮', icon: '🍽️' },
+        { id: 'transport', name: '交通', icon: '🚗' },
+        { id: 'shopping', name: '购物', icon: '🛍️' },
+        { id: 'entertainment', name: '娱乐', icon: '🎮' },
+        { id: 'housing', name: '住房', icon: '🏠' },
+        { id: 'medical', name: '医疗', icon: '🏥' },
+        { id: 'education', name: '教育', icon: '📚' },
+        { id: 'other', name: '其他', icon: '📝' }
+    ],
+    income: [
+        { id: 'salary', name: '工资', icon: '💰' },
+        { id: 'investment', name: '理财', icon: '📈' },
+        { id: 'gift', name: '礼物', icon: '🎁' },
+        { id: 'other', name: '其他', icon: '📝' }
+    ]
 };
 
-const CATEGORY_ICONS = {
-    '餐饮': '🍽️', '交通': '🚗', '购物': '🛍️', '娱乐': '🎮',
-    '住房': '🏠', '工资': '💰', '理财': '📈', '其他': '📝'
-};
+const STORAGE_KEY = 'finance_app_data';
+const PREF_KEY = 'finance_app_prefs';
 
+// --- State Management ---
 let appData = {
     bills: [],
     goals: [],
@@ -16,1178 +29,1259 @@ let appData = {
     fixedExpenses: [],
     wishes: [],
     budgets: { total: 0, categoryBudgets: {} },
-    settings: { currency: '¥', theme: 'light', lastType: 'expense', lastCategory: '餐饮' }
+    settings: { currency: '¥', theme: 'light', enableAI: false },
+    accounts: {
+        cash: { name: '现金', balance: 0 },
+        bank: { name: '银行卡', balance: 0 },
+        alipay: { name: '支付宝', balance: 0 },
+        wechat: { name: '微信支付', balance: 0 }
+    }
 };
 
-// ==================== Utility Functions ====================
-/**
- * 生成唯一ID
- * @returns {string} 基于时间戳和随机数的唯一字符串
- */
-function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
+let prefs = {
+    lastType: 'expense',
+    lastCategory: 'food',
+    billFilter: 'all',
+    timeFilter: 'month',
+    customStartDate: null,
+    customEndDate: null
+};
 
-/**
- * 安全转换为数字，无效值返回0
- * @param {*} v - 待转换的值
- * @returns {number} 转换后的数值
- */
-function safeNumber(v) {
-    const num = Number(v);
-    return isNaN(num) ? 0 : num;
-}
+let currentBillState = {
+    type: 'expense',
+    category: 'food'
+};
 
-/**
- * 四舍五入到两位小数
- * @param {number|string} value - 待处理的数值
- * @returns {number} 处理后的数值
- */
-function roundTo2(value) {
-    return Math.round(safeNumber(value) * 100) / 100;
-}
+let editingBillId = null;
 
-/**
- * 格式化金额显示
- * @param {number} amount - 金额数值
- * @returns {string} 格式化后的金额字符串
- */
-function formatMoney(amount) {
-    return appData.settings.currency + roundTo2(amount);
-}
+// --- Chart Instances ---
+let chartInstance = null;
+let categoryChartInstance = null;
 
-/**
- * 格式化日期为 YYYY-MM-DD 格式
- * @param {string|Date} dateStr - 日期字符串或Date对象
- * @returns {string} 格式化后的日期字符串
- */
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+// --- AI Analysis Cache ---
+let aiAnalysisCache = {};
 
-/**
- * 显示轻量级提示信息
- * @param {string} msg - 提示内容
- */
-function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2000);
-}
-
-// ==================== Form Validation Functions ====================
-/**
- * 验证必填字段
- * @param {*} value - 字段值
- * @param {string} label - 字段标签（用于错误提示）
- * @returns {string|null} 验证通过返回trim后的值，失败返回错误信息
- */
-function validateRequired(value, label) {
-    const val = String(value || '').trim();
-    return val ? val : `${label}不能为空`;
-}
-
-/**
- * 验证金额格式（>0，最多两位小数）
- * @param {*} value - 金额值
- * @param {string} label - 字段标签
- * @returns {number|string} 验证通过返回数值，失败返回错误信息
- */
-function validateAmount(value, label) {
-    const num = safeNumber(value);
-    if (num <= 0) return `${label}必须大于0`;
-    if (!/^\d+(\.\d{1,2})?$/.test(String(value))) return `${label}最多两位小数`;
-    return num;
-}
-
-/**
- * 验证日期合法性
- * @param {string} value - 日期字符串（YYYY-MM-DD格式）
- * @param {string} label - 字段标签
- * @returns {string|boolean} 验证通过返回原值，失败返回错误信息
- */
-function validateDate(value, label) {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? `${label}不合法` : value;
-}
-
-/**
- * 检查是否为有效日期对象
- * @param {any} value - 待检查的值
- * @returns {boolean} 是否为有效日期
- */
-function isValidDate(value) {
-    return value instanceof Date && !isNaN(value.getTime());
-}
-
-// ==================== Storage Management ====================
-/**
- * 加载本地存储数据并进行兼容性处理
- * 兼容旧版数据结构，为新字段提供默认值
- */
-function loadData() {
-    try {
-        let data = null;
-        // 优先读取新key
-        const newData = localStorage.getItem('finance_app_data');
-        if (newData) {
-            data = JSON.parse(newData);
-        } else {
-            // 回退旧key
-            const legacyData = localStorage.getItem('myWalletData');
-            if (legacyData) {
-                data = JSON.parse(legacyData);
-                // 一次性迁移
-                localStorage.setItem('finance_app_data', legacyData);
-                // 可选：清除旧数据
-                // localStorage.removeItem('myWalletData');
-            }
-        }
-
-        if (data) {
-            // 合并数据并确保结构完整
-            appData = { ...appData, ...data };
-            
-            // 数据迁移：确保所有必要字段存在
-            if (!appData.budgets) appData.budgets = { total: 0, categoryBudgets: {} };
-            if (!appData.savingsRecords) appData.savingsRecords = [];
-            if (!appData.wishes) appData.wishes = [];
-            if (!appData.fixedExpenses) appData.fixedExpenses = [];
-            if (!appData.goals) appData.goals = [];
-            if (!appData.settings) appData.settings = { currency: '¥', theme: 'light' };
-            if (typeof appData.settings.theme !== 'string') appData.settings.theme = 'light';
-            if (!appData.settings.lastType) appData.settings.lastType = 'expense';
-            if (!appData.settings.lastCategory) appData.settings.lastCategory = '餐饮';
-
-            // 迁移旧数据：为固定支出添加缺失的cycle字段
-            appData.fixedExpenses.forEach(item => {
-                if (!item.cycle) item.cycle = 'monthly'; // 默认每月
-                if (!item.nextDate) item.nextDate = formatDate(new Date());
-            });
-        }
-    } catch (e) {
-        console.error("数据加载失败", e);
-        showToast("数据加载异常");
-    }
-    
-    // 应用主题设置
+// --- Initialization ---
+function init() {
+    loadData();
+    loadPrefs();
     applyTheme();
-    renderAll();
-}
-
-/**
- * 保存数据到localStorage
- */
-function saveData() {
-    try {
-        localStorage.setItem('finance_app_data', JSON.stringify(appData));
-    } catch (e) {
-        console.error("数据保存失败", e);
-        showToast("存储空间不足，请清理浏览器缓存");
-    }
-}
-
-// ==================== Theme Management ====================
-/**
- * 应用当前主题设置到页面
- */
-function applyTheme() {
-    const theme = appData.settings.theme;
-    document.documentElement.setAttribute('data-theme', theme);
-    // 更新切换按钮状态
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        themeToggle.textContent = theme === 'dark' ? '☀️ 浅色模式' : '🌙 深色模式';
-    }
-}
-
-/**
- * 切换深色/浅色模式
- */
-function toggleTheme() {
-    const currentTheme = appData.settings.theme;
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    appData.settings.theme = newTheme;
-    saveData();
-    applyTheme();
-    showToast(`已切换至${newTheme === 'light' ? '浅色' : '深色'}模式`);
-}
-
-// ==================== Core Business Logic ====================
-/**
- * 计算下一周期日期，自动处理月末等特殊情况
- * @param {string} dateStr - 当前日期（YYYY-MM-DD）
- * @param {string} cycle - 周期类型：weekly/monthly/yearly
- * @returns {string} 下一周期日期
- */
-function getNextRecurringDate(dateStr, cycle) {
-    const date = new Date(dateStr);
-    let next = new Date(date);
-
-    switch (cycle) {
-        case 'weekly':
-            next.setDate(date.getDate() + 7);
-            break;
-        case 'monthly':
-            const currentDay = date.getDate();
-            next.setMonth(date.getMonth() + 1);
-            // 处理月末情况：如1月31日 → 2月最后一天
-            const lastDayOfNextMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-            if (currentDay > lastDayOfNextMonth) {
-                next.setDate(lastDayOfNextMonth);
-            } else {
-                next.setDate(currentDay);
-            }
-            break;
-        case 'yearly':
-            const targetYear = date.getFullYear() + 1;
-            const targetMonth = date.getMonth();
-            const targetDay = date.getDate();
-            // 处理闰年情况：2月29日 → 次年2月最后一天
-            const lastDayOfTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-            if (targetDay > lastDayOfTargetMonth) {
-                next = new Date(targetYear, targetMonth, lastDayOfTargetMonth);
-            } else {
-                next = new Date(targetYear, targetMonth, targetDay);
-            }
-            break;
-    }
-    return formatDate(next);
-}
-
-/**
- * 检查指定周期内是否已记账
- * @param {Object} item - 固定支出项目
- * @returns {boolean} 是否已记账
- */
-function isRecurringExpenseAlreadyLogged(item) {
-    return appData.bills.some(bill => 
-        bill.fixedId === item.id && 
-        bill.date === item.nextDate
-    );
-}
-
-/**
- * 重新计算存钱目标当前金额
- * @param {string} goalId - 目标ID
- */
-function recalculateGoalAmount(goalId) {
-    const records = appData.savingsRecords.filter(r => r.goalId === goalId);
-    const total = records.reduce((sum, r) => sum + safeNumber(r.amount), 0);
-    const goal = appData.goals.find(g => g.id === goalId);
-    if (goal) {
-        goal.current = Math.max(0, roundTo2(total)); // 确保不小于0
-    }
-}
-
-// ==================== Bill Management CRUD ====================
-/**
- * 新增账单
- * @param {Object} bill - 账单数据
- */
-function addBill(bill) {
-    appData.bills.unshift({ ...bill, id: generateId(), timestamp: Date.now() });
-    saveData();
-    renderAll();
-}
-
-/**
- * 更新账单
- * @param {string} id - 账单ID
- * @param {Object} updatedBill - 更新后的账单数据
- */
-function updateBill(id, updatedBill) {
-    const idx = appData.bills.findIndex(b => b.id === id);
-    if (idx !== -1) {
-        appData.bills[idx] = { ...appData.bills[idx], ...updatedBill };
-        saveData();
-        renderAll();
-    }
-}
-
-/**
- * 删除账单（带二次确认）
- * @param {string} id - 账单ID
- */
-function deleteBill(id) {
-    confirmAction('确定删除这条账单吗？', () => {
-        appData.bills = appData.bills.filter(b => b.id !== id);
-        saveData();
-        renderAll();
-        showToast('已删除');
-    });
-}
-
-// ==================== Fixed Expense Management ====================
-/**
- * 执行固定支出记账操作
- * @param {string} fixedId - 固定支出ID
- */
-function logFixedExpense(fixedId) {
-    const item = appData.fixedExpenses.find(f => f.id === fixedId);
-    if (!item) return;
-
-    if (isRecurringExpenseAlreadyLogged(item)) {
-        showToast('本周期已记账');
-        return;
-    }
-
-    // 创建新的支出账单
-    const newBill = {
-        type: 'expense',
-        amount: item.amount,
-        category: item.category,
-        note: `固定支出: ${item.name}`,
-        date: item.nextDate,
-        time: new Date().toTimeString().split(' ')[0],
-        fixedId: item.id
-    };
-
-    addBill(newBill);
-
-    // 更新下次记账日期
-    item.nextDate = getNextRecurringDate(item.nextDate, item.cycle);
-    saveData();
-    renderSavingsPage(); // 刷新存钱页
-    showToast('记账成功');
-}
-
-// ==================== Savings Goal Management ====================
-/**
- * 新增存钱记录
- * @param {Object} record - 存钱记录数据
- */
-function addSavingsRecord(record) {
-    appData.savingsRecords.push({ ...record, id: generateId() });
-    recalculateGoalAmount(record.goalId);
-    saveData();
-    renderAll();
-}
-
-/**
- * 删除存钱记录
- * @param {string} recordId - 记录ID
- */
-function deleteSavingsRecord(recordId) {
-    const rec = appData.savingsRecords.find(r => r.id === recordId);
-    if (rec) {
-        appData.savingsRecords = appData.savingsRecords.filter(r => r.id !== recordId);
-        recalculateGoalAmount(rec.goalId);
-        saveData();
-        renderAll();
-    }
-}
-
-/**
- * 删除存钱目标（级联删除相关记录和解绑心愿）
- * @param {string} goalId - 目标ID
- */
-function deleteGoal(goalId) {
-    confirmAction('删除目标将同时删除其存钱记录并解除心愿绑定，确定吗？', () => {
-        // 级联删除相关记录
-        appData.savingsRecords = appData.savingsRecords.filter(r => r.goalId !== goalId);
-        // 解绑相关心愿
-        appData.wishes.forEach(wish => {
-            if (wish.linkedGoalId === goalId) wish.linkedGoalId = null;
-        });
-        // 删除目标本身
-        appData.goals = appData.goals.filter(g => g.id !== goalId);
-        
-        saveData();
-        renderAll();
-        showToast('已删除');
-    });
-}
-
-// ==================== Wish List Management ====================
-/**
- * 删除心愿
- * @param {string} wishId - 心愿ID
- */
-function deleteWish(wishId) {
-    confirmAction('确定删除这个心愿吗？', () => {
-        appData.wishes = appData.wishes.filter(w => w.id !== wishId);
-        saveData();
-        renderSavingsPage();
-        showToast('已删除');
-    });
-}
-
-// ==================== Budget Calculation ====================
-/**
- * 获取指定月份的统计信息
- * @param {number} year - 年份
- * @param {number} month - 月份（1-12）
- * @returns {Object} 统计结果
- */
-function getMonthlyStats(year, month) {
-    const prefix = `${year}-${String(month).padStart(2,'0')}`;
-    // 空数组兜底处理
-    const bills = Array.isArray(appData.bills) ? appData.bills : [];
-    const monthlyBills = bills.filter(b => b.date?.startsWith(prefix));
     
-    const expense = monthlyBills
-        .filter(b => b.type === 'expense')
-        .reduce((sum, b) => sum + safeNumber(b.amount), 0);
-    
-    const income = monthlyBills
-        .filter(b => b.type === 'income')
-        .reduce((sum, b) => sum + safeNumber(b.amount), 0);
-    
-    // 分类统计
-    const catStats = {};
-    monthlyBills
-        .filter(b => b.type === 'expense')
-        .forEach(b => {
-            catStats[b.category] = (catStats[b.category] || 0) + safeNumber(b.amount);
-        });
-
-    return { expense: roundTo2(expense), income: roundTo2(income), catStats };
-}
-
-/**
- * 获取最近7天的每日收支数据
- * @returns {Object} 包含日期、收入、支出数组的对象
- */
-function getLast7DaysData() {
-    const dates = [];
-    const incomes = [];
-    const expenses = [];
-    
-    for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = formatDate(date);
-        dates.push(`${date.getMonth()+1}/${date.getDate()}`);
-        
-        const dailyBills = appData.bills.filter(b => b.date === dateStr);
-        const income = dailyBills
-            .filter(b => b.type === 'income')
-            .reduce((sum, b) => sum + safeNumber(b.amount), 0);
-        const expense = dailyBills
-            .filter(b => b.type === 'expense')
-            .reduce((sum, b) => sum + safeNumber(b.amount), 0);
-            
-        incomes.push(roundTo2(income));
-        expenses.push(roundTo2(expense));
-    }
-    
-    return { dates, incomes, expenses };
-}
-
-// ==================== Import/Export ====================
-/**
- * 导出数据为JSON文件
- */
-function exportData() {
-    try {
-        const dataStr = JSON.stringify(appData);
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `finance_app_backup_${formatDate(new Date())}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('导出成功');
-    } catch (e) {
-        console.error("导出失败", e);
-        showToast('导出失败');
-    }
-}
-
-/**
- * 导入数据（支持覆盖和合并两种模式）
- * @param {File} file - JSON文件
- * @param {string} mode - 模式：overwrite | merge
- */
-function importData(file, mode) {
-    if (!file) {
-        showToast('请选择文件');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const imported = JSON.parse(e.target.result);
-            
-            // 基础数据结构验证
-            if (!imported.hasOwnProperty('bills')) {
-                throw new Error('数据格式错误');
-            }
-
-            if (mode === 'overwrite') {
-                appData = imported;
-            } else {
-                // 合并模式：按ID去重，避免脏数据
-                const existingIds = new Set([...appData.bills.map(b => b.id)]);
-                const newBills = imported.bills.filter(b => !existingIds.has(b.id));
-                appData.bills = [...appData.bills, ...newBills];
-
-                // 合并其他数据集（同样去重）
-                const mergeArrayById = (target, source, key) => {
-                    const ids = new Set(target.map(i => i.id));
-                    const newItems = source.filter(i => !ids.has(i.id));
-                    target.push(...newItems);
-                };
-
-                mergeArrayById(appData.fixedExpenses, imported.fixedExpenses || [], 'fixedExpenses');
-                mergeArrayById(appData.goals, imported.goals || [], 'goals');
-                mergeArrayById(appData.savingsRecords, imported.savingsRecords || [], 'savingsRecords');
-                mergeArrayById(appData.wishes, imported.wishes || [], 'wishes');
-
-                // 合并预算设置
-                if (imported.budgets) {
-                    appData.budgets.total = imported.budgets.total || appData.budgets.total;
-                    Object.assign(appData.budgets.categoryBudgets, imported.budgets.categoryBudgets || {});
-                }
-                
-                // 合并设置
-                if (imported.settings) {
-                    Object.assign(appData.settings, imported.settings);
-                }
-            }
-            
-            saveData();
-            renderAll();
-            closeModal();
-            showToast('导入成功');
-        } catch (err) {
-            showToast('导入失败: ' + err.message);
-        }
-    };
-    reader.readAsText(file);
-}
-
-// ==================== Clear All Data ====================
-/**
- * 清空所有应用数据（需二次确认）
- */
-function clearAllData() {
-    confirmAction('此操作将永久删除所有数据且无法恢复，确定要清空所有数据吗？', () => {
-        appData = {
-            bills: [],
-            goals: [],
-            savingsRecords: [],
-            fixedExpenses: [],
-            wishes: [],
-            budgets: { total: 0, categoryBudgets: {} },
-            settings: { currency: '¥', theme: 'light', lastType: 'expense', lastCategory: '餐饮' }
-        };
-        saveData();
-        renderAll();
-        showToast('所有数据已清空');
-    });
-}
-
-// ==================== Modal & Toast System ====================
-const modal = document.getElementById('modal-overlay');
-const modalBody = document.getElementById('modal-body');
-const modalTitle = document.getElementById('modal-title');
-const modalConfirmBtn = document.getElementById('modal-confirm-btn');
-
-/**
- * 关闭模态框
- */
-function closeModal() {
-    modal.style.display = 'none';
-}
-
-/**
- * 显示确认操作模态框
- * @param {string} message - 确认信息
- * @param {Function} onConfirm - 确认回调函数
- */
-function confirmAction(message, onConfirm) {
-    modalTitle.textContent = '确认操作';
-    modalBody.innerHTML = `<p>${message}</p>`;
-    modalConfirmBtn.onclick = () => {
-        onConfirm();
-        closeModal();
-    };
-    modal.style.display = 'flex';
-}
-
-/**
- * 初始化模态框点击外部关闭功能
- */
-function initModalClose() {
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
-}
-
-// ==================== Home Page Form Logic ====================
-/**
- * 更新分类选项根据当前选择的类型
- * @param {string} selectedCat - 预选中的分类
- */
-function updateCategoryOptions(selectedCat = '') {
-    const type = document.getElementById('home-type').value;
-    const select = document.getElementById('home-category');
-    const options = CATEGORIES[type].map(c => 
-        `<option value="${c}" ${c===selectedCat?'selected':''}>${c}</option>`
-    ).join('');
-    select.innerHTML = options;
-}
-
-/**
- * 处理首页表单提交
- */
-function handleHomeFormSubmit() {
-    // 收集表单数据
-    const amountInput = document.getElementById('home-amount');
-    const typeSelect = document.getElementById('home-type');
-    const categorySelect = document.getElementById('home-category');
-    const noteInput = document.getElementById('home-note');
-    
-    // 清除之前的错误提示
-    clearErrorMessages();
-    
-    // 字段校验
-    let hasError = false;
-    const validations = [
-        { value: amountInput.value, label: '金额', validator: validateAmount },
-        { value: categorySelect.value, label: '分类', validator: validateRequired }
-    ];
-    
-    validations.forEach(({ value, label, validator }) => {
-        const result = validator(value, label);
-        if (typeof result === 'string') {
-            showError(categorySelect, result);
-            hasError = true;
-        }
-    });
-    
-    if (hasError) return;
-    
-    // 获取校验通过的数据
-    const amount = validateAmount(amountInput.value, '金额');
-    const type = typeSelect.value;
-    const category = validateRequired(categorySelect.value, '分类');
-    const note = noteInput.value.trim();
+    // Set Date
     const now = new Date();
-    
-    // 创建账单对象
-    const bill = {
-        type,
-        amount,
-        category,
-        note,
-        date: formatDate(now),
-        time: now.toTimeString().split(' ')[0]
-    };
-    
-    // 添加账单
-    addBill(bill);
-    
-    // 更新用户偏好
-    appData.settings.lastType = type;
-    appData.settings.lastCategory = category;
-    saveData();
-    
-    // 显示成功提示
-    showToast('记账成功');
-    
-    // 可配置：是否清空表单（当前实现连续记账不清空）
-    // amountInput.value = '';
-    noteInput.value = '';
-    
-    // 重新渲染首页数据
-    renderHome();
-}
+    document.getElementById('current-date').textContent = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日}`;
 
-/**
- * 显示字段错误信息
- * @param {HTMLElement} fieldElement - 表单字段元素
- * @param {string} errorMsg - 错误消息
- */
-function showError(fieldElement, errorMsg) {
-    const errorDiv = document.getElementById('home-error-msg');
-    errorDiv.textContent = errorMsg;
-    errorDiv.style.display = 'block';
-}
+    // Initialize Home Form
+    setBillType(prefs.lastType);
+    setCategory(prefs.lastCategory);
 
-/**
- * 清除所有错误提示
- */
-function clearErrorMessages() {
-    const errorDiv = document.getElementById('home-error-msg');
-    errorDiv.style.display = 'none';
-}
-
-// ==================== Category Shortcut Handling ====================
-/**
- * 处理快捷分类按钮点击
- * @param {string} category - 分类名称
- */
-function handleCategoryShortcut(category) {
-    const type = document.getElementById('home-type').value;
-    const categorySelect = document.getElementById('home-category');
-    
-    // 更新下拉框选择
-    updateCategoryOptions(category);
-    
-    // 记忆用户选择
-    appData.settings.lastType = type;
-    appData.settings.lastCategory = category;
-    saveData();
-}
-
-// ==================== Chart Rendering ====================
-/**
- * 使用Canvas绘制7天趋势图
- */
-function renderTrendChart() {
-    const canvas = document.getElementById('stats-chart-canvas');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    const data = getLast7DaysData();
-    
-    // 设置画布尺寸
-    const padding = 40;
-    const width = canvas.offsetWidth;
-    const height = canvas.offsetHeight;
-    canvas.width = width;
-    canvas.height = height;
-    
-    // 清空画布
-    ctx.clearRect(0, 0, width, height);
-    
-    // 找到最大值用于比例计算
-    const maxVal = Math.max(...data.incomes, ...data.expenses, 1);
-    const barWidth = (width - padding * 2) / (data.dates.length * 2 - 1);
-    const gap = barWidth;
-    
-    // 绘制坐标轴
-    ctx.beginPath();
-    ctx.moveTo(padding, height - padding);
-    ctx.lineTo(padding, padding);
-    ctx.lineTo(width - padding, padding);
-    ctx.strokeStyle = '#8E8E93';
-    ctx.stroke();
-    
-    // 绘制X轴标签
-    ctx.fillStyle = '#8E8E93';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    data.dates.forEach((date, i) => {
-        const x = padding + i * (barWidth + gap) + barWidth/2;
-        ctx.fillText(date, x, height - padding + 15);
-    });
-    
-    // 绘制Y轴标签
-    ctx.textAlign = 'right';
-    for (let i = 0; i <= 4; i++) {
-        const y = height - padding - i * ((height - padding * 2) / 4);
-        const value = roundTo2(maxVal * i / 4);
-        ctx.fillText(formatMoney(value).replace('¥',''), padding - 10, y + 4);
-    }
-    
-    // 绘制折线
-    const drawLine = (values, color) => {
-        ctx.beginPath();
-        values.forEach((val, i) => {
-            const x = padding + i * (barWidth + gap) + barWidth/2;
-            const y = height - padding - (val / maxVal) * (height - padding * 2);
-            if (i === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        });
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // 绘制数据点
-        values.forEach((val, i) => {
-            const x = padding + i * (barWidth + gap) + barWidth/2;
-            const y = height - padding - (val / maxVal) * (height - padding * 2);
-            ctx.beginPath();
-            ctx.arc(x, y, 4, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-        });
-    };
-    
-    // 绘制收入线（绿色）
-    drawLine(data.incomes, '#34C759');
-    
-    // 绘制支出线（红色）
-    drawLine(data.expenses, '#FF3B30');
-    
-    // 绘制图例
-    ctx.font = '14px sans-serif';
-    ctx.textAlign = 'left';
-    
-    // 收入图例
-    ctx.fillStyle = '#34C759';
-    ctx.fillRect(width - 100, 10, 12, 12);
-    ctx.fillStyle = '#000000';
-    ctx.fillText('收入', width - 84, 20);
-    
-    // 支出图例
-    ctx.fillStyle = '#FF3B30';
-    ctx.fillRect(width - 100, 30, 12, 12);
-    ctx.fillStyle = '#000000';
-    ctx.fillText('支出', width - 84, 40);
-}
-
-// ==================== Data Rendering Functions ====================
-/**
- * 渲染所有页面数据
- */
-function renderAll() {
-    renderHome();
+    // Render Initial Data
     renderBills();
     renderStats();
-    renderSavingsPage();
-    renderSettings();
+    renderBudgetAndSavings();
+    renderTodaySummary();
+    
+    // Setup event listeners
+    setupEventListeners();
 }
 
-/**
- * 渲染首页数据
- */
-function renderHome() {
-    const now = new Date();
-    const stats = getMonthlyStats(now.getFullYear(), now.getMonth() + 1);
-    
-    document.getElementById('current-month').textContent = `${now.getFullYear()}年${now.getMonth()+1}月`;
-    document.getElementById('home-income').textContent = formatMoney(stats.income);
-    document.getElementById('home-expense').textContent = formatMoney(stats.expense);
-    
-    // 预算状态
-    const budgetTotal = appData.budgets.total || 0;
-    const budgetEl = document.getElementById('home-budget-status');
-    if (budgetTotal > 0) {
-        const percent = (stats.expense / budgetTotal) * 100;
-        let msg = `预算使用 ${percent.toFixed(1)}%`;
-        if (percent >= 100) {
-            budgetEl.innerHTML = `<span class="budget-over">⚠️ 已超预算 (${formatMoney(stats.expense)} / ${formatMoney(budgetTotal)})</span>`;
-        } else if (percent >= 80) {
-            budgetEl.innerHTML = `<span class="budget-warning">⚠️ 预算预警 (${formatMoney(stats.expense)} / ${formatMoney(budgetTotal)})</span>`;
+function setupEventListeners() {
+    // Custom date range toggle
+    document.getElementById('time-filter').addEventListener('change', function() {
+        const customRangeDiv = document.getElementById('custom-time-range');
+        if (this.value === 'custom') {
+            customRangeDiv.style.display = 'block';
+            // Set default dates
+            const today = new Date();
+            const start = new Date(today.getFullYear(), today.getMonth(), 1);
+            const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            
+            document.getElementById('start-date').value = start.toISOString().split('T')[0];
+            document.getElementById('end-date').value = end.toISOString().split('T')[0];
         } else {
-            budgetEl.textContent = `预算剩余 ${formatMoney(budgetTotal - stats.expense)}`;
+            customRangeDiv.style.display = 'none';
         }
-    } else {
-        budgetEl.textContent = '';
-    }
+    });
     
-    // 近期账单
-    const list = document.getElementById('home-bill-list');
-    const recent = appData.bills.slice(0, 5);
-    if (recent.length === 0) {
-        list.innerHTML = '<div class="empty-state"><div class="empty-icon">🧾</div>暂无账单</div>';
-    } else {
-        list.innerHTML = recent.map(b => `
-            <div class="list-item" onclick="openBillModal('${b.id}')">
-                <div style="display:flex; align-items:center;">
-                    <div class="item-icon">${CATEGORY_ICONS[b.category] || '📝'}</div>
-                    <div>
-                        <div class="item-title">${b.category}</div>
-                        <div class="item-subtitle">${b.date} ${b.note}</div>
-                    </div>
-                </div>
-                <div class="item-amount ${b.type==='income'?'amount-income':'amount-expense'}">
-                    ${b.type==='income'?'+':'-'}${formatMoney(b.amount)}
-                </div>
-            </div>
-        `).join('');
-    }
+    // Set default dates for custom range
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
-    // 恢复上次使用的类型和分类
-    const typeSelect = document.getElementById('home-type');
-    const categorySelect = document.getElementById('home-category');
-    if (typeSelect && categorySelect) {
-        typeSelect.value = appData.settings.lastType;
-        updateCategoryOptions(appData.settings.lastCategory);
+    document.getElementById('start-date').value = start.toISOString().split('T')[0];
+    document.getElementById('end-date').value = end.toISOString().split('T')[0];
+}
+
+// --- Data Persistence ---
+function loadData() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+        try {
+            const parsed = JSON.parse(stored);
+            // Merge to ensure structure exists
+            appData = { ...appData, ...parsed };
+        } catch (e) {
+            console.error("Data load error", e);
+        }
     }
 }
 
-/**
- * 渲染账单列表
- */
-function renderBills() {
-    const list = document.getElementById('bills-list');
-    const search = document.getElementById('bill-search')?.value.toLowerCase() || '';
-    
-    let filtered = appData.bills;
-    if (search) {
-        filtered = filtered.filter(b => 
-            b.category.includes(search) || 
-            (b.note && b.note.toLowerCase().includes(search))
-        );
+function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+}
+
+function loadPrefs() {
+    const stored = localStorage.getItem(PREF_KEY);
+    if (stored) {
+        prefs = JSON.parse(stored);
     }
+}
+
+function savePrefs() {
+    localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+}
+
+// --- UI Logic: Navigation ---
+function switchPage(pageId) {
+    // Update Tab Bar
+    document.querySelectorAll('.tab-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.innerText.includes(getPageName(pageId))) {
+            item.classList.add('active');
+        }
+    });
+
+    // Update Pages
+    document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+    });
+    document.getElementById(`page-${pageId}`).classList.add('active');
+
+    // Refresh specific page data
+    if (pageId === 'bills') renderBills();
+    if (pageId === 'stats') {
+        renderStats();
+        setTimeout(initChart, 100); // Delay for DOM rendering
+    }
+    if (pageId === 'budget') renderBudgetAndSavings();
+    if (pageId === 'settings') updateSettingsUI();
+}
+
+function getPageName(id) {
+    const map = { 'home': '首页', 'bills': '账单', 'stats': '统计', 'budget': '预算', 'settings': '设置' };
+    return map[id];
+}
+
+// --- UI Logic: Home Page (Add Bill) ---
+function setBillType(type) {
+    currentBillState.type = type;
+    prefs.lastType = type;
+    savePrefs();
+
+    // Update Toggle UI
+    document.querySelectorAll('.type-option').forEach(el => {
+        el.classList.remove('active', 'expense', 'income');
+        if (el.dataset.type === type) {
+            el.classList.add('active', type);
+        }
+    });
+
+    // Render Categories
+    renderCategories(type);
     
-    if (filtered.length === 0) {
-        list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div>无账单记录</div>';
+    // Reset category to first available if current type doesn't have it
+    const available = CATEGORIES[type];
+    if (!available.find(c => c.id === currentBillState.category)) {
+        setCategory(available[0].id);
+    } else {
+        renderCategories(type); // Re-render to show selection
+    }
+}
+
+function setCategory(catId) {
+    currentBillState.category = catId;
+    prefs.lastCategory = catId;
+    savePrefs();
+    renderCategories(currentBillState.type);
+}
+
+function renderCategories(type) {
+    const grid = document.getElementById('category-grid');
+    grid.innerHTML = '';
+    
+    CATEGORIES[type].forEach(cat => {
+        const div = document.createElement('div');
+        div.className = `category-item ${currentBillState.category === cat.id ? 'selected' : ''}`;
+        div.onclick = () => setCategory(cat.id);
+        div.innerHTML = `
+            <div class="category-icon">${cat.icon}</div>
+            <div class="category-name">${cat.name}</div>
+        `;
+        grid.appendChild(div);
+    });
+}
+
+function submitBill() {
+    const amountInput = document.getElementById('amount');
+    const noteInput = document.getElementById('note');
+    const errorMsg = document.getElementById('amount-error');
+    
+    const amountVal = parseFloat(amountInput.value);
+
+    // Validation
+    if (isNaN(amountVal) || amountVal <= 0) {
+        errorMsg.style.display = 'block';
+        errorMsg.textContent = '金额必须大于0';
         return;
     }
     
-    list.innerHTML = filtered.map(b => `
-        <div class="list-item" onclick="openBillModal('${b.id}')">
-            <div style="display:flex; align-items:center;">
-                <div class="item-icon">${CATEGORY_ICONS[b.category] || '📝'}</div>
-                <div>
-                    <div class="item-title">${b.category}</div>
-                    <div class="item-subtitle">${b.date} ${b.note}</div>
-                </div>
-            </div>
-            <div style="text-align:right;">
-                <div class="item-amount ${b.type==='income'?'amount-income':'amount-expense'}">
-                    ${b.type==='income'?'+':'-'}${formatMoney(b.amount)}
-                </div>
-                <button class="btn btn-sm btn-outline" style="margin-top:4px; border:none; color:#999;" onclick="event.stopPropagation(); deleteBill('${b.id}')">删除</button>
-            </div>
-        </div>
-    `).join('');
+    // Check decimal places
+    const decimals = (amountVal.toString().split('.')[1] || '').length;
+    if (decimals > 2) {
+        errorMsg.style.display = 'block';
+        errorMsg.textContent = '最多支持两位小数';
+        return;
+    }
+
+    errorMsg.style.display = 'none';
+
+    // Create Bill Object
+    const newBill = {
+        id: Date.now(),
+        type: currentBillState.type,
+        category: currentBillState.category,
+        amount: amountVal,
+        note: noteInput.value.trim(),
+        date: new Date().toISOString()
+    };
+
+    // Save
+    appData.bills.unshift(newBill);
+    saveData();
+
+    // Feedback
+    showToast('记账成功');
+    
+    // Continuous Entry: Reset amount and note, keep type and category
+    amountInput.value = '';
+    noteInput.value = '';
+    amountInput.focus();
+
+    // Update Home Summary
+    renderTodaySummary();
+    renderStats();
+    renderBudgetAndSavings();
+    
+    // Trigger AI analysis update if enabled
+    if (appData.settings.enableAI) {
+        setTimeout(updateAIInsights, 1000);
+    }
 }
 
-/**
- * 渲染统计页面
- */
-function renderStats() {
-    // 本月收支总额已在renderHome中处理
+function renderTodaySummary() {
+    const today = new Date().toDateString();
+    let expense = 0;
+    let income = 0;
+
+    appData.bills.forEach(bill => {
+        if (new Date(bill.date).toDateString() === today) {
+            if (bill.type === 'expense') expense += bill.amount;
+            else income += bill.amount;
+        }
+    });
+
+    document.getElementById('today-expense').textContent = formatMoney(expense);
+    document.getElementById('today-income').textContent = formatMoney(income);
+}
+
+// --- UI Logic: Bills Page ---
+function setBillFilter(filter) {
+    prefs.billFilter = filter;
+    savePrefs();
     
-    // 分类支出排行
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    renderBills();
+}
+
+function setTimeFilter(timeRange) {
+    prefs.timeFilter = timeRange;
+    savePrefs();
+    renderBills();
+}
+
+function applyCustomRange() {
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    
+    if (startDate && endDate) {
+        prefs.customStartDate = startDate;
+        prefs.customEndDate = endDate;
+        prefs.timeFilter = 'custom';
+        savePrefs();
+        renderBills();
+    }
+}
+
+function searchBills() {
+    const searchTerm = document.getElementById('bill-search').value.toLowerCase();
+    renderBills(searchTerm);
+}
+
+function renderBills(searchTerm = '') {
+    const container = document.getElementById('bills-list');
+    container.innerHTML = '';
+
+    if (appData.bills.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📂</div>
+                <div>暂无账单记录</div>
+            </div>`;
+        return;
+    }
+
+    // Filter bills based on preferences and time range
+    let filteredBills = appData.bills;
+    
+    // Apply type filter
+    if (prefs.billFilter !== 'all') {
+        filteredBills = filteredBills.filter(bill => bill.type === prefs.billFilter);
+    }
+    
+    // Apply time filter
+    filteredBills = applyTimeFilter(filteredBills);
+    
+    // Apply search filter
+    if (searchTerm) {
+        filteredBills = filteredBills.filter(bill => {
+            return (
+                bill.note.toLowerCase().includes(searchTerm) ||
+                bill.category.toLowerCase().includes(searchTerm) ||
+                bill.amount.toString().includes(searchTerm)
+            );
+        });
+    }
+
+    // Calculate period statistics
+    calculatePeriodStats(filteredBills);
+
+    if (filteredBills.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <div>没有找到匹配的账单</div>
+            </div>`;
+        return;
+    }
+
+    // Group bills by date
+    const groupedBills = groupBillsByDate(filteredBills);
+
+    // Render grouped bills
+    Object.entries(groupedBills).forEach(([date, bills]) => {
+        const dateHeader = document.createElement('div');
+        dateHeader.className = 'bill-date-header';
+        dateHeader.innerHTML = `<h4>${date}</h4>`;
+        container.appendChild(dateHeader);
+
+        bills.forEach(bill => {
+            const catInfo = getCategoryInfo(bill.type, bill.category);
+            const dateObj = new Date(bill.date);
+            const timeStr = `${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+            
+            const div = document.createElement('div');
+            div.className = 'bill-item';
+            div.innerHTML = `
+                <div class="bill-left">
+                    <div class="bill-icon">${catInfo.icon}</div>
+                    <div class="bill-info">
+                        <h4>${catInfo.name}</h4>
+                        <p>${bill.note || timeStr}</p>
+                    </div>
+                </div>
+                <div class="bill-amount ${bill.type}">
+                    ${bill.type === 'expense' ? '-' : '+'}${formatMoney(bill.amount)}
+                </div>
+                <div class="bill-actions">
+                    <button class="action-btn edit-btn" onclick="editBill(${bill.id})">✏️</button>
+                    <button class="action-btn delete-btn" onclick="deleteBill(${bill.id})">🗑️</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    });
+}
+
+function applyTimeFilter(bills) {
     const now = new Date();
-    const stats = getMonthlyStats(now.getFullYear(), now.getMonth() + 1);
-    const cats = Object.keys(stats.catStats);
-    const maxVal = Math.max(...Object.values(stats.catStats), 1);
+    let startDate, endDate;
     
-    const chartHtml = cats.length ? cats.map(cat => {
-        const val = stats.catStats[cat];
-        const width = (val / maxVal) * 100;
-        return `
-            <div style="margin-bottom:12px;">
-                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                    <span>${cat}</span>
-                    <span>${formatMoney(val)}</span>
+    switch(prefs.timeFilter) {
+        case 'today':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            break;
+        case 'week':
+            const dayOfWeek = now.getDay();
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - dayOfWeek);
+            startDate = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate());
+            endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 7);
+            break;
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            break;
+        case 'year':
+            startDate = new Date(now.getFullYear(), 0, 1);
+            endDate = new Date(now.getFullYear() + 1, 0, 1);
+            break;
+        case 'custom':
+            if (prefs.customStartDate && prefs.customEndDate) {
+                startDate = new Date(prefs.customStartDate);
+                endDate = new Date(prefs.customEndDate);
+                endDate.setDate(endDate.getDate() + 1); // Include end date
+            }
+            break;
+        default:
+            return bills;
+    }
+    
+    return bills.filter(bill => {
+        const billDate = new Date(bill.date);
+        return billDate >= startDate && billDate < endDate;
+    });
+}
+
+function groupBillsByDate(bills) {
+    const grouped = {};
+    bills.forEach(bill => {
+        const dateStr = formatDate(new Date(bill.date), 'MM月dd日');
+        if (!grouped[dateStr]) {
+            grouped[dateStr] = [];
+        }
+        grouped[dateStr].push(bill);
+    });
+    return grouped;
+}
+
+function calculatePeriodStats(bills) {
+    let income = 0;
+    let expense = 0;
+    
+    bills.forEach(bill => {
+        if (bill.type === 'income') {
+            income += bill.amount;
+        } else {
+            expense += bill.amount;
+        }
+    });
+    
+    const net = income - expense;
+    
+    document.getElementById('period-income').textContent = formatMoney(income);
+    document.getElementById('period-expense').textContent = formatMoney(expense);
+    document.getElementById('period-net').textContent = formatMoney(net);
+    document.getElementById('period-net').className = net >= 0 ? 'stat-value income' : 'stat-value expense';
+}
+
+function editBill(billId) {
+    const bill = appData.bills.find(b => b.id === billId);
+    if (!bill) return;
+    
+    editingBillId = billId;
+    
+    document.getElementById('edit-bill-type').value = bill.type;
+    document.getElementById('edit-bill-amount').value = bill.amount;
+    document.getElementById('edit-bill-note').value = bill.note || '';
+    
+    // Populate category options
+    const categorySelect = document.getElementById('edit-bill-category');
+    categorySelect.innerHTML = '';
+    const categories = CATEGORIES[bill.type];
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = cat.name;
+        if (cat.id === bill.category) {
+            option.selected = true;
+        }
+        categorySelect.appendChild(option);
+    });
+    
+    document.getElementById('edit-bill-modal').style.display = 'flex';
+}
+
+function saveEditedBill() {
+    const type = document.getElementById('edit-bill-type').value;
+    const amount = parseFloat(document.getElementById('edit-bill-amount').value);
+    const category = document.getElementById('edit-bill-category').value;
+    const note = document.getElementById('edit-bill-note').value;
+    
+    if (isNaN(amount) || amount <= 0) {
+        showToast('请输入有效金额');
+        return;
+    }
+    
+    const index = appData.bills.findIndex(b => b.id === editingBillId);
+    if (index !== -1) {
+        appData.bills[index] = {
+            ...appData.bills[index],
+            type,
+            amount,
+            category,
+            note
+        };
+        saveData();
+        closeModal('edit-bill-modal');
+        renderBills();
+        renderStats();
+        renderTodaySummary();
+        renderBudgetAndSavings();
+        showToast('账单已更新');
+    }
+}
+
+function deleteBill(billId) {
+    if (confirm('确定要删除这条账单吗？')) {
+        appData.bills = appData.bills.filter(bill => bill.id !== billId);
+        saveData();
+        renderBills();
+        renderStats();
+        renderTodaySummary();
+        renderBudgetAndSavings();
+        showToast('账单已删除');
+    }
+}
+
+// --- UI Logic: Stats Page ---
+function renderStats() {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let monthExpense = 0;
+    let monthIncome = 0;
+
+    appData.bills.forEach(bill => {
+        const d = new Date(bill.date);
+        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+            if (bill.type === 'expense') monthExpense += bill.amount;
+            else monthIncome += bill.amount;
+        }
+    });
+
+    document.getElementById('month-expense').textContent = formatMoney(monthExpense);
+    document.getElementById('month-income').textContent = formatMoney(monthIncome);
+    
+    // Show/hide AI section based on setting
+    const aiSection = document.getElementById('ai-analysis-section');
+    if (appData.settings.enableAI) {
+        aiSection.style.display = 'block';
+        updateAIInsights();
+    } else {
+        aiSection.style.display = 'none';
+    }
+}
+
+function initChart() {
+    // Main chart - daily expenses
+    const dom = document.getElementById('chart-main');
+    if (!dom) return;
+    
+    if (chartInstance) chartInstance.dispose();
+    chartInstance = echarts.init(dom);
+    
+    // Prepare last 7 days data
+    const dates = [];
+    const expenseData = [];
+    
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+        dates.push(dateStr);
+        
+        const dayTotal = appData.bills
+            .filter(b => new Date(b.date).toDateString() === d.toDateString() && b.type === 'expense')
+            .reduce((sum, b) => sum + b.amount, 0);
+        expenseData.push(dayTotal);
+    }
+
+    const option = {
+        color: ['#FF3B30'],
+        grid: { top: 30, right: 10, bottom: 20, left: 40 },
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: dates },
+        yAxis: { type: 'value' },
+        series: [{
+            data: expenseData,
+            type: 'line',
+            smooth: true,
+            areaStyle: { opacity: 0.2 }
+        }]
+    };
+
+    // Handle dark mode color for chart
+    if (document.body.getAttribute('data-theme') === 'dark') {
+        option.darkMode = true;
+        option.textStyle = { color: '#fff' };
+    }
+
+    chartInstance.setOption(option);
+    
+    // Category chart - monthly expenses by category
+    const categoryDom = document.getElementById('chart-category');
+    if (!categoryDom) return;
+    
+    if (categoryChartInstance) categoryChartInstance.dispose();
+    categoryChartInstance = echarts.init(categoryDom);
+    
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    // Calculate expenses by category
+    const categoryExpenses = {};
+    appData.bills.forEach(bill => {
+        const d = new Date(bill.date);
+        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear && bill.type === 'expense') {
+            if (!categoryExpenses[bill.category]) {
+                categoryExpenses[bill.category] = 0;
+            }
+            categoryExpenses[bill.category] += bill.amount;
+        }
+    });
+    
+    const categoryNames = Object.keys(categoryExpenses);
+    const categoryValues = Object.values(categoryExpenses);
+    
+    const categoryOption = {
+        color: ['#FF3B30', '#FF9500', '#5AC8FA', '#34C759', '#AF52DE', '#FFD60A', '#FF2D55', '#007AFF'],
+        tooltip: { trigger: 'item' },
+        legend: { orient: 'vertical', left: 'left' },
+        series: [{
+            name: '支出分类',
+            type: 'pie',
+            radius: '50%',
+            data: categoryNames.map((name, index) => ({
+                value: categoryValues[index],
+                name: getCategoryInfo('expense', name).name
+            })),
+            emphasis: {
+                itemStyle: {
+                    shadowBlur: 10,
+                    shadowOffsetX: 0,
+                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                }
+            }
+        }]
+    };
+    
+    if (document.body.getAttribute('data-theme') === 'dark') {
+        categoryOption.darkMode = true;
+        categoryOption.textStyle = { color: '#fff' };
+    }
+    
+    categoryChartInstance.setOption(categoryOption);
+}
+
+// --- UI Logic: Budget & Savings Page ---
+function renderBudgetAndSavings() {
+    renderBudgets();
+    renderFixedExpenses();
+    renderGoals();
+}
+
+function renderBudgets() {
+    const container = document.getElementById('budgets-list');
+    container.innerHTML = '';
+
+    if (Object.keys(appData.budgets.categoryBudgets).length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📊</div>
+                <div>暂无预算设置</div>
+            </div>`;
+        return;
+    }
+
+    // Get current month's expenses by category
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const monthlyExpenses = {};
+    appData.bills.forEach(bill => {
+        if (bill.type === 'expense') {
+            const d = new Date(bill.date);
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                if (!monthlyExpenses[bill.category]) {
+                    monthlyExpenses[bill.category] = 0;
+                }
+                monthlyExpenses[bill.category] += bill.amount;
+            }
+        }
+    });
+
+    for (const [categoryId, budgetAmount] of Object.entries(appData.budgets.categoryBudgets)) {
+        const catInfo = getCategoryInfo('expense', categoryId);
+        const spent = monthlyExpenses[categoryId] || 0;
+        const percent = Math.min(100, (spent / budgetAmount) * 100).toFixed(1);
+        const remaining = budgetAmount - spent;
+        
+        const div = document.createElement('div');
+        div.className = 'budget-item';
+        div.innerHTML = `
+            <div class="budget-info">
+                <div>${catInfo.name}</div>
+                <div class="text-secondary">${formatMoney(spent)} / ${formatMoney(budgetAmount)} (${remaining >= 0 ? '剩余' + formatMoney(remaining) : '超支' + formatMoney(Math.abs(remaining))})</div>
+                <div class="budget-progress">
+                    <div class="budget-progress-fill" style="width: ${percent}%"></div>
                 </div>
-                <div style="background:#E5E5EA; height:8px; border-radius:4px; overflow:hidden;">
-                    <div style="width:${width}%; background:var(--primary-color); height:100%;"></div>
-                </div>
+            </div>
+            <div class="budget-controls">
+                <button class="btn btn-secondary" onclick="editBudget('${categoryId}')">编辑</button>
+                <button class="btn btn-secondary" onclick="deleteBudget('${categoryId}')">删除</button>
             </div>
         `;
-    }).join('') : '<div class="empty-state">暂无数据</div>';
-    
-    const categoryList = document.getElementById('stats-category-list');
-    if (categoryList) {
-        categoryList.innerHTML = chartHtml;
+        container.appendChild(div);
     }
-    
-    // 7天趋势图
-    renderTrendChart();
 }
 
-/**
- * 渲染存钱页数据
- */
-function renderSavingsPage() {
-    // 固定支出
-    const fixedList = document.getElementById('fixed-list');
+function openAddBudgetModal() {
+    const select = document.getElementById('budget-category');
+    select.innerHTML = '';
+    
+    CATEGORIES.expense.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = cat.name;
+        select.appendChild(option);
+    });
+    
+    document.getElementById('budget-amount').value = '';
+    document.getElementById('add-budget-modal').style.display = 'flex';
+}
+
+function addBudget() {
+    const categoryId = document.getElementById('budget-category').value;
+    const amount = parseFloat(document.getElementById('budget-amount').value);
+    
+    if (isNaN(amount) || amount <= 0) {
+        showToast('请输入有效预算金额');
+        return;
+    }
+    
+    appData.budgets.categoryBudgets[categoryId] = amount;
+    saveData();
+    closeModal('add-budget-modal');
+    renderBudgetAndSavings();
+    showToast('预算已添加');
+}
+
+function editBudget(categoryId) {
+    const amount = appData.budgets.categoryBudgets[categoryId];
+    document.getElementById('budget-category').value = categoryId;
+    document.getElementById('budget-amount').value = amount;
+    document.getElementById('add-budget-modal').style.display = 'flex';
+    
+    // Remove the category from the list so it can't be selected again
+    const select = document.getElementById('budget-category');
+    for (let i = 0; i < select.options.length; i++) {
+        if (select.options[i].value === categoryId) {
+            select.removeChild(select.options[i]);
+            break;
+        }
+    }
+}
+
+function deleteBudget(categoryId) {
+    if (confirm('确定要删除这个预算吗？')) {
+        delete appData.budgets.categoryBudgets[categoryId];
+        saveData();
+        renderBudgetAndSavings();
+        showToast('预算已删除');
+    }
+}
+
+function renderFixedExpenses() {
+    const container = document.getElementById('fixed-expenses-list');
+    container.innerHTML = '';
+
     if (appData.fixedExpenses.length === 0) {
-        fixedList.innerHTML = '<div class="empty-state" style="padding:20px;">无固定支出</div>';
-    } else {
-        fixedList.innerHTML = appData.fixedExpenses.map(f => `
-            <div class="list-item">
-                <div style="flex:1;">
-                    <div class="item-title" style="font-size:16px;">${f.name} (${f.cycle})</div>
-                    <div class="item-subtitle" style="font-size:14px;">下次: ${f.nextDate}</div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-weight:bold; margin-bottom:4px;">${formatMoney(f.amount)}</div>
-                    <button class="btn btn-sm btn-primary" style="padding:8px 16px;" onclick="logFixedExpense('${f.id}')">记账</button>
-                    <button class="btn btn-sm btn-outline" style="border:none;" onclick="confirmDeleteFixed('${f.id}')">🗑️</button>
-                </div>
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📅</div>
+                <div>暂无固定支出</div>
+            </div>`;
+        return;
+    }
+
+    appData.fixedExpenses.forEach(expense => {
+        const div = document.createElement('div');
+        div.className = 'fixed-expense-item';
+        div.innerHTML = `
+            <div class="fixed-expense-info">
+                <div>${expense.name}</div>
+                <div class="text-secondary">${formatMoney(expense.amount)} • ${getCycleText(expense.cycle)}</div>
             </div>
-        `).join('');
+            <div class="fixed-expense-controls">
+                <button class="btn btn-secondary" onclick="editFixedExpense(${expense.id})">编辑</button>
+                <button class="btn btn-secondary" onclick="deleteFixedExpense(${expense.id})">删除</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function openAddFixedExpenseModal() {
+    document.getElementById('fixed-expense-name').value = '';
+    document.getElementById('fixed-expense-amount').value = '';
+    document.getElementById('fixed-expense-start-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('fixed-expense-modal').style.display = 'flex';
+}
+
+function addFixedExpense() {
+    const name = document.getElementById('fixed-expense-name').value;
+    const amount = parseFloat(document.getElementById('fixed-expense-amount').value);
+    const cycle = document.getElementById('fixed-expense-cycle').value;
+    const startDate = document.getElementById('fixed-expense-start-date').value;
+    
+    if (!name || isNaN(amount) || amount <= 0 || !startDate) {
+        showToast('请输入完整的固定支出信息');
+        return;
     }
     
-    // 心愿清单
-    const wishList = document.getElementById('wish-list');
-    if (appData.wishes.length === 0) {
-        wishList.innerHTML = '<div class="empty-state" style="padding:20px;">无心愿</div>';
-    } else {
-        wishList.innerHTML = appData.wishes.map(w => {
-            const linkedGoal = appData.goals.find(g => g.id === w.linkedGoalId);
-            const statusText = linkedGoal ? (linkedGoal.current >= linkedGoal.target ? '已完成' : '存钱中') : '未开始';
-            return `
-            <div class="list-item">
-                <div style="flex:1;">
-                    <div class="item-title">${w.name} <span class="priority-badge p-${w.priority}">${w.priority}</span></div>
-                    <div class="item-subtitle">目标: ${formatMoney(w.target)} | 状态: ${statusText}</div>
-                </div>
-                <div>
-                    ${linkedGoal ? `<button class="btn btn-sm btn-outline" onclick="openWishBindModal('${w.id}')">更换目标</button>` : `<button class="btn btn-sm btn-primary" onclick="openWishBindModal('${w.id}')">去绑定</button>`}
-                    <button class="btn btn-sm btn-outline" style="border:none;" onclick="confirmDeleteWish('${w.id}')">🗑️</button>
-                </div>
-            </div>
-        `}).join('');
+    appData.fixedExpenses.push({
+        id: Date.now(),
+        name,
+        amount,
+        cycle,
+        startDate
+    });
+    saveData();
+    closeModal('fixed-expense-modal');
+    renderBudgetAndSavings();
+    showToast('固定支出已添加');
+}
+
+function editFixedExpense(expenseId) {
+    // Implementation for editing fixed expense
+    showToast('编辑固定支出功能待完善');
+}
+
+function deleteFixedExpense(expenseId) {
+    if (confirm('确定要删除这个固定支出吗？')) {
+        appData.fixedExpenses = appData.fixedExpenses.filter(e => e.id !== expenseId);
+        saveData();
+        renderBudgetAndSavings();
+        showToast('固定支出已删除');
     }
-    
-    // 存钱目标
-    const goalList = document.getElementById('goal-list');
+}
+
+function renderGoals() {
+    const container = document.getElementById('goals-list');
+    container.innerHTML = '';
+
     if (appData.goals.length === 0) {
-        goalList.innerHTML = '<div class="empty-state" style="padding:20px;">无存钱目标</div>';
-    } else {
-        goalList.innerHTML = appData.goals.map(g => {
-            const percent = Math.min(100, (g.current / g.target) * 100).toFixed(1);
-            const isCompleted = g.current >= g.target;
-            return `
-            <div class="card" style="margin-bottom:12px; padding:16px;">
-                <div class="card-header" style="margin-bottom:8px;">
-                    <span class="item-title" style="font-size:17px;">${g.name}</span>
-                    ${isCompleted ? '<span style="color:var(--success-color); font-size:12px;">已达成</span>' : ''}
-                </div>
-                <div class="goal-stats">
-                    <span>已存: ${formatMoney(g.current)}</span>
-                    <span>目标: ${formatMoney(g.target)}</span>
-                </div>
-                <div class="goal-progress-bar">
-                    <div class="goal-progress-fill" style="width:${percent}%"></div>
-                </div>
-                <div style="text-align:right; margin-bottom:12px; font-size:14px; color:var(--text-secondary);">${percent}%</div>
-                <div style="display:flex; gap:10px;">
-                    <button class="btn btn-primary btn-sm" style="flex:1" onclick="openDepositModal('${g.id}')">+ 存入</button>
-                    <button class="btn btn-outline btn-sm" style="flex:1" onclick="openGoalRecords('${g.id}')">记录</button>
-                    <button class="btn btn-outline btn-sm" onclick="deleteGoal('${g.id}')">删除</button>
-                </div>
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🎯</div>
+                <div>暂无存钱目标</div>
+            </div>`;
+        return;
+    }
+
+    appData.goals.forEach(goal => {
+        const percent = Math.min(100, (goal.current / goal.target) * 100).toFixed(1);
+        const div = document.createElement('div');
+        div.className = 'goal-item';
+        div.innerHTML = `
+            <div class="goal-header">
+                <span>${goal.name}</span>
+                <span>${formatMoney(goal.current)} / ${formatMoney(goal.target)}</span>
             </div>
-        `}).join('');
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: ${percent}%"></div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function openAddGoalModal() {
+    document.getElementById('goal-name').value = '';
+    document.getElementById('goal-target').value = '';
+    document.getElementById('goal-current').value = '0';
+    document.getElementById('add-goal-modal').style.display = 'flex';
+}
+
+function addGoal() {
+    const name = document.getElementById('goal-name').value;
+    const target = parseFloat(document.getElementById('goal-target').value);
+    const current = parseFloat(document.getElementById('goal-current').value) || 0;
+    
+    if (!name || isNaN(target) || target <= 0) {
+        showToast('请输入有效的目标信息');
+        return;
+    }
+    
+    appData.goals.push({
+        id: Date.now(),
+        name,
+        target,
+        current
+    });
+    saveData();
+    closeModal('add-goal-modal');
+    renderBudgetAndSavings();
+    showToast('目标已添加');
+}
+
+// --- UI Logic: Settings & Theme ---
+function toggleTheme() {
+    const current = appData.settings.theme;
+    const next = current === 'light' ? 'dark' : 'light';
+    appData.settings.theme = next;
+    saveData();
+    applyTheme();
+}
+
+function applyTheme() {
+    const isDark = appData.settings.theme === 'dark';
+    document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    
+    const toggle = document.getElementById('theme-toggle');
+    if (isDark) toggle.classList.add('on');
+    else toggle.classList.remove('on');
+}
+
+function toggleAIAnalysis() {
+    appData.settings.enableAI = !appData.settings.enableAI;
+    saveData();
+    updateSettingsUI();
+    
+    // Show/hide AI section in stats page
+    const aiSection = document.getElementById('ai-analysis-section');
+    if (appData.settings.enableAI) {
+        aiSection.style.display = 'block';
+        updateAIInsights();
+    } else {
+        aiSection.style.display = 'none';
     }
 }
 
-/**
- * 渲染设置页面
- */
-function renderSettings() {
-    // 货币符号
-    const currencySelect = document.getElementById('setting-currency');
-    if (currencySelect) {
-        const currencies = ['¥', '$', '€', '£'];
-        currencySelect.innerHTML = currencies.map(cur => 
-            `<option value="${cur}" ${appData.settings.currency===cur?'selected':''}>${cur}</option>`
-        ).join('');
+function updateSettingsUI() {
+    const aiToggle = document.getElementById('ai-toggle');
+    if (appData.settings.enableAI) {
+        aiToggle.classList.add('on');
+    } else {
+        aiToggle.classList.remove('on');
     }
+}
+
+function openBackupModal() {
+    const backupData = JSON.stringify(appData, null, 2);
+    document.getElementById('backup-data').value = backupData;
+    document.getElementById('backup-modal').style.display = 'flex';
+}
+
+function copyBackupData() {
+    const textarea = document.getElementById('backup-data');
+    textarea.select();
+    document.execCommand('copy');
+    showToast('数据已复制到剪贴板');
+}
+
+function restoreData() {
+    const restoreTextarea = document.getElementById('restore-data');
+    const data = restoreTextarea.value;
     
-    // 主题切换按钮
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        themeToggle.textContent = appData.settings.theme === 'dark' ? '☀️ 浅色模式' : '🌙 深色模式';
+    try {
+        const parsed = JSON.parse(data);
+        appData = { ...appData, ...parsed };
+        saveData();
+        location.reload();
+    } catch (e) {
+        showToast('数据格式错误，无法恢复');
     }
+}
+
+function clearData() {
+    if(confirm('确定要清空所有数据吗？此操作无法撤销。')) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(PREF_KEY);
+        location.reload();
+    }
+}
+
+// --- Modal Functions ---
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+};
+
+// --- Utilities ---
+function getCategoryInfo(type, id) {
+    const list = CATEGORIES[type] || [];
+    const found = list.find(c => c.id === id);
+    return found || { name: '未知', icon: '❓' };
+}
+
+function formatMoney(num) {
+    return '¥' + num.toFixed(2);
+}
+
+function formatDate(date, format) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
     
-    // 预算设置
-    document.getElementById('setting-total-budget').value = appData.budgets.total || '';
+    if (format === 'MM月dd日') {
+        return `${month}月${day}日`;
+    }
+    return `${year}-${month}-${day}`;
+}
+
+function getCycleText(cycle) {
+    const cycles = {
+        'daily': '每日',
+        'weekly': '每周',
+        'monthly': '每月',
+        'yearly': '每年'
+    };
+    return cycles[cycle] || cycle;
+}
+
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2000);
+}
+
+// --- AI Analysis Module ---
+function updateAIInsights() {
+    if (!appData.settings.enableAI) return;
     
-    const catContainer = document.getElementById('setting-category-budgets');
-    const cats = CATEGORIES.expense;
-    catContainer.innerHTML = cats.map(c => `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span>${c}</span>
-            <input type="number" class="form-input" style="width:100px; padding:6px;" 
-                value="${appData.budgets.categoryBudgets[c] || ''}" 
-                placeholder="0" 
-                onchange="updateCategoryBudget('${c}', this.value)">
+    const insightsContainer = document.getElementById('ai-insights');
+    if (!insightsContainer) return;
+    
+    // Clear previous insights
+    insightsContainer.innerHTML = '<div>正在分析您的财务状况...</div>';
+    
+    // Simulate async processing
+    setTimeout(() => {
+        const insights = generateAIInsights();
+        insightsContainer.innerHTML = insights;
+    }, 500);
+}
+
+function generateAIInsights() {
+    // Analyze spending patterns
+    const spendingAnalysis = analyzeSpendingPatterns();
+    // Check for budget warnings
+    const budgetWarnings = checkBudgetWarnings();
+    // Analyze financial health
+    const healthAssessment = assessFinancialHealth();
+    // Generate recommendations
+    const recommendations = generateRecommendations();
+    
+    return `
+        <div class="ai-insight">
+            <div class="ai-insight-title">消费模式分析</div>
+            <div class="ai-insight-content">${spendingAnalysis}</div>
         </div>
-    `).join('');
+        <div class="ai-insight">
+            <div class="ai-insight-title ai-warning">预算提醒</div>
+            <div class="ai-insight-content">${budgetWarnings}</div>
+        </div>
+        <div class="ai-insight">
+            <div class="ai-insight-title">财务健康度</div>
+            <div class="ai-insight-content">${healthAssessment}</div>
+        </div>
+        <div class="ai-insight">
+            <div class="ai-insight-title">改善建议</div>
+            <div class="ai-insight-content">${recommendations}</div>
+        </div>
+    `;
 }
 
-// ==================== Settings Page Functions ====================
-/**
- * 更新分类预算
- * @param {string} cat - 分类名称
- * @param {string} val - 预算值
- */
-function updateCategoryBudget(cat, val) {
-    appData.budgets.categoryBudgets[cat] = safeNumber(val);
-    saveData();
-    renderHome(); // 刷新警告
-}
-
-/**
- * 保存总预算设置
- */
-function saveBudgetSettings() {
-    appData.budgets.total = safeNumber(document.getElementById('setting-total-budget').value);
-    saveData();
-    renderHome();
-    showToast('预算已更新');
-}
-
-/**
- * 保存货币符号设置
- */
-function saveCurrencySetting() {
-    const currency = document.getElementById('setting-currency').value;
-    appData.settings.currency = currency;
-    saveData();
-    renderAll();
-    showToast('货币符号已更新');
-}
-
-// ==================== Navigation ====================
-/**
- * 切换页面
- * @param {string} tabId - 页面ID (home/bills/stats/savings/settings)
- */
-function switchTab(tabId) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+function analyzeSpendingPatterns() {
+    // Find top spending category
+    const categoryTotals = {};
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
     
-    document.getElementById(`page-${tabId}`).classList.add('active');
+    appData.bills.forEach(bill => {
+        if (bill.type === 'expense') {
+            const d = new Date(bill.date);
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                if (!categoryTotals[bill.category]) {
+                    categoryTotals[bill.category] = 0;
+                }
+                categoryTotals[bill.category] += bill.amount;
+            }
+        }
+    });
     
-    // 更新底部导航栏激活状态
-    const tabs = ['home', 'bills', 'stats', 'savings', 'settings'];
-    const idx = tabs.indexOf(tabId);
-    if (idx !== -1) {
-        document.querySelectorAll('.tab-item')[idx].classList.add('active');
+    // Find max spending category
+    let maxCat = null;
+    let maxAmount = 0;
+    for (const [cat, amount] of Object.entries(categoryTotals)) {
+        if (amount > maxAmount) {
+            maxAmount = amount;
+            maxCat = cat;
+        }
     }
     
-    // 更新页面标题
-    const titles = { home: '首页', bills: '账单明细', stats: '数据统计', savings: '存钱目标', settings: '设置' };
-    document.getElementById('page-title').textContent = titles[tabId];
+    if (maxCat) {
+        const catInfo = getCategoryInfo('expense', maxCat);
+        return `本月最大支出类别是"${catInfo.name}"，共花费${formatMoney(maxAmount)}。`;
+    }
+    return "本月暂无支出记录。";
+}
+
+function checkBudgetWarnings() {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
     
-    // 特殊处理：进入统计页时重绘图表
-    if (tabId === 'stats') {
-        setTimeout(renderTrendChart, 100);
+    const monthlyExpenses = {};
+    appData.bills.forEach(bill => {
+        if (bill.type === 'expense') {
+            const d = new Date(bill.date);
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                if (!monthlyExpenses[bill.category]) {
+                    monthlyExpenses[bill.category] = 0;
+                }
+                monthlyExpenses[bill.category] += bill.amount;
+            }
+        }
+    });
+    
+    const warnings = [];
+    for (const [categoryId, budgetAmount] of Object.entries(appData.budgets.categoryBudgets)) {
+        const spent = monthlyExpenses[categoryId] || 0;
+        const percentUsed = (spent / budgetAmount) * 100;
+        
+        if (percentUsed >= 90) {
+            const catInfo = getCategoryInfo('expense', categoryId);
+            if (percentUsed >= 100) {
+                warnings.push(`<span class="ai-danger">⚠️ "${catInfo.name}"已超预算${formatMoney(spent - budgetAmount)}！</span>`);
+            } else {
+                warnings.push(`<span class="ai-warning">⚠️ "${catInfo.name}"预算已使用${percentUsed.toFixed(1)}%</span>`);
+            }
+        }
+    }
+    
+    if (warnings.length === 0) {
+        return "✅ 所有预算均在控制范围内";
+    }
+    return warnings.join('<br>');
+}
+
+function assessFinancialHealth() {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    let monthlyIncome = 0;
+    let monthlyExpense = 0;
+    
+    appData.bills.forEach(bill => {
+        const d = new Date(bill.date);
+        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+            if (bill.type === 'income') {
+                monthlyIncome += bill.amount;
+            } else {
+                monthlyExpense += bill.amount;
+            }
+        }
+    });
+    
+    const netIncome = monthlyIncome - monthlyExpense;
+    const savingsRate = monthlyIncome > 0 ? (netIncome / monthlyIncome) * 100 : 0;
+    
+    if (savingsRate > 20) {
+        return `<span class="ai-success">✅ 财务状况优秀！储蓄率达到${savingsRate.toFixed(1)}%</span>`;
+    } else if (savingsRate > 10) {
+        return `<span class="ai-success">✅ 财务状况良好，储蓄率为${savingsRate.toFixed(1)}%</span>`;
+    } else if (savingsRate > 0) {
+        return `<span class="ai-warning">⚠️ 储蓄率较低(${savingsRate.toFixed(1)}%)，建议控制支出</span>`;
+    } else {
+        return `<span class="ai-danger">❌ 本月入不敷出，需关注支出情况</span>`;
     }
 }
 
-// ==================== Initialization ====================
-/**
- * 初始化应用
- */
-function initApp() {
-    // 加载数据
-    loadData();
+function generateRecommendations() {
+    const recommendations = [];
     
-    // 初始化模态框关闭事件
-    initModalClose();
-    
-    // 绑定首页表单提交事件
-    const form = document.getElementById('home-form');
-    if (form) {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            handleHomeFormSubmit();
-        });
+    // Check if there are unused budgets
+    if (Object.keys(appData.budgets.categoryBudgets).length === 0) {
+        recommendations.push("💡 建议设置预算来更好地控制支出");
     }
     
-    // 绑定类型切换事件以更新分类
-    const typeSelect = document.getElementById('home-type');
-    if (typeSelect) {
-        typeSelect.addEventListener('change', () => {
-            updateCategoryOptions();
-        });
+    // Check if there are no savings goals
+    if (appData.goals.length === 0) {
+        recommendations.push("💡 设定储蓄目标有助于实现财务自由");
     }
+    
+    // Check for high expense categories
+    const categoryTotals = {};
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    appData.bills.forEach(bill => {
+        if (bill.type === 'expense') {
+            const d = new Date(bill.date);
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                if (!categoryTotals[bill.category]) {
+                    categoryTotals[bill.category] = 0;
+                }
+                categoryTotals[bill.category] += bill.amount;
+            }
+        }
+    });
+    
+    // Find categories that might be too high
+    let totalExpenses = 0;
+    for (const amount of Object.values(categoryTotals)) {
+        totalExpenses += amount;
+    }
+    
+    if (totalExpenses > 0) {
+        for (const [catId, amount] of Object.entries(categoryTotals)) {
+            const percentage = (amount / totalExpenses) * 100;
+            if (percentage > 30) { // If any category takes more than 30% of expenses
+                const catInfo = getCategoryInfo('expense', catId);
+                recommendations.push(`💡 "${catInfo.name}"支出占比过高(${percentage.toFixed(1)}%)，可适当控制`);
+            }
+        }
+    }
+    
+    if (recommendations.length === 0) {
+        return "继续保持良好的财务习惯！";
+    }
+    
+    return recommendations.join('<br>');
 }
 
-// 页面加载完成后初始化
-window.addEventListener('DOMContentLoaded', initApp);
+// --- Run ---
+window.addEventListener('DOMContentLoaded', init);
