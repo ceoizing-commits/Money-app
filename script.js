@@ -108,6 +108,8 @@ function setupEventListeners() {
         if (prefs.customEndDate) {
             document.getElementById('end-date').value = prefs.customEndDate;
         }
+    } else {
+        document.getElementById('custom-time-range').style.display = 'none';
     }
 }
 
@@ -1355,3 +1357,4 @@ document.addEventListener('DOMContentLoaded', init);
 
 // --- Run ---
 window.addEventListener('DOMContentLoaded', init);
+
