@@ -1,0 +1,607 @@
+/* ==================== Reset & Base Styles ==================== */
+:root {
+    --primary-color: #007AFF;
+    --success-color: #34C759;
+    --danger-color: #FF3B30;
+    --warning-color: #FF9500;
+    --bg-color: #F2F2F7;
+    --card-bg: #FFFFFF;
+    --text-primary: #000000;
+    --text-secondary: #8E8E93;
+    --border-color: #E5E5EA;
+    --input-bg: #F9F9F9;
+    --btn-active-opacity: 0.7;
+    --nav-height: 80px;
+    --safe-area-bottom: env(safe-area-inset-bottom);
+}
+
+/* 深色模式变量覆盖 */
+[data-theme="dark"] {
+    --bg-color: #1C1C1E;
+    --card-bg: #2C2C2E;
+    --text-primary: #FFFFFF;
+    --text-secondary: #AEAEB2;
+    --border-color: #3A3A3C;
+    --input-bg: #3A3A3C;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    padding-bottom: calc(var(--nav-height) + var(--safe-area-bottom) + 20px);
+    user-select: none;
+}
+
+/* ==================== Layout & Typography ==================== */
+header {
+    background-color: var(--card-bg);
+    padding: 20px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.page {
+    display: none;
+    padding: 16px;
+    animation: fadeIn 0.3s ease;
+}
+
+.page.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==================== Components: Cards ==================== */
+.card {
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.card-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* ==================== Components: Buttons ==================== */
+.btn {
+    border: none;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn:active {
+    opacity: var(--btn-active-opacity);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--primary-color);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.btn-lg {
+    padding: 14px 20px;
+    font-size: 18px;
+    width: 100%;
+}
+
+.fab {
+    position: fixed;
+    bottom: calc(var(--nav-height) + 20px);
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+    z-index: 20;
+    cursor: pointer;
+}
+
+/* ==================== Components: Forms ==================== */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 16px;
+    background-color: var(--input-bg);
+    appearance: none;
+    color: var(--text-primary);
+}
+
+.form-input:focus,
+.form-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background-color: #fff;
+}
+
+.error-msg {
+    color: var(--danger-color);
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+}
+
+/* ==================== Add Bill Module (Home Page) ==================== */
+.add-bill-container {
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.type-switch {
+    display: flex;
+    background-color: var(--bg-color);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.type-option {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-secondary);
+}
+
+.type-option.active {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.type-option.active.expense {
+    color: var(--danger-color);
+}
+
+.type-option.active.income {
+    color: var(--success-color);
+}
+
+.amount-input-group {
+    position: relative;
+    margin-bottom: 16px;
+}
+
+.currency-symbol {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    color: var(--text-secondary);
+    pointer-events: none;
+}
+
+.amount-input {
+    width: 100%;
+    padding: 16px 16px 16px 40px;
+    font-size: 28px;
+    font-weight: bold;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background-color: var(--input-bg);
+    text-align: center;
+    color: var(--text-primary);
+}
+
+.amount-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background-color: #fff;
+}
+
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.category-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    border-radius: 12px;
+    background-color: var(--bg-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.category-item:active {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .category-item:active {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.category-icon {
+    font-size: 24px;
+    margin-bottom: 6px;
+}
+
+.category-name {
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+/* ==================== Components: Lists ==================== */
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.list-item:last-child {
+    border-bottom: none;
+}
+
+.item-icon {
+    font-size: 24px;
+    margin-right: 12px;
+    width: 32px;
+    text-align: center;
+}
+
+.item-info {
+    flex: 1;
+}
+
+.item-title {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.item-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.item-amount {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.amount-income { color: var(--success-color); }
+.amount-expense { color: var(--text-primary); }
+
+/* ==================== Bottom Navigation ==================== */
+.tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--nav-height);
+    background-color: rgba(255, 255, 255, 0.95);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+    padding-top: 10px;
+    padding-bottom: var(--safe-area-bottom);
+    z-index: 100;
+    backdrop-filter: blur(10px);
+}
+
+.tab-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    flex: 1;
+    height: 100%;
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 16px 0;
+}
+
+.tab-icon {
+    font-size: 26px;
+    margin-bottom: 4px;
+}
+
+.tab-text {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.tab-item.active {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* ==================== Modal & Toast ==================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    width: 90%;
+    max-width: 400px;
+    border-radius: 20px;
+    padding: 24px;
+    animation: scaleUp 0.2s ease;
+}
+
+@keyframes scaleUp {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 14px;
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+.toast-success {
+    background-color: rgba(52, 199, 89, 0.9);
+}
+
+.toast-error {
+    background-color: rgba(255, 59, 48, 0.9);
+}
+
+/* ==================== Specific Page Styles ==================== */
+.goal-progress-bar {
+    height: 12px;
+    background-color: var(--bg-color);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 12px 0;
+}
+
+.goal-progress-fill {
+    height: 100%;
+    background-color: var(--primary-color);
+    transition: width 0.5s ease;
+}
+
+.goal-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.priority-badge {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.p-high { background-color: #FFE5E5; color: #FF3B30; }
+.p-medium { background-color: #FFF4E5; color: #FF9500; }
+.p-low { background-color: #E5F4FF; color: #007AFF; }
+
+.budget-warning { color: var(--warning-color); font-weight: bold; }
+.budget-over { color: var(--danger-color); font-weight: bold; }
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.storage-warning {
+    background-color: #FFF3CD;
+    color: #856404;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 16px;
+    border: 1px solid #FFEEBA;
+}
+
+.chart-container {
+    width: 100%;
+    height: 250px;
+    margin-top: 16px;
+}
+
+/* ==================== Deep Dark Mode Compatibility ==================== */
+[data-theme="dark"] {
+    --btn-active-opacity: 0.6;
+}
+
+/* Card and Container */
+[data-theme="dark"] .card,
+[data-theme="dark"] .add-bill-container,
+[data-theme="dark"] .modal-content {
+    background-color: var(--card-bg);
+}
+
+/* Form Elements */
+[data-theme="dark"] .form-input,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .amount-input {
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .form-input:focus,
+[data-theme="dark"] .form-select:focus,
+[data-theme="dark"] .amount-input:focus {
+    background-color: #3A3A3C;
+    border-color: var(--primary-color);
+}
+
+/* List Items */
+[data-theme="dark"] .list-item {
+    border-bottom-color: var(--border-color);
+}
+
+/* Buttons */
+[data-theme="dark"] .btn-outline {
+    border-color: var(--border-color);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .type-switch {
+    background-color: #3A3A3C;
+}
+
+[data-theme="dark"] .category-item {
+    background-color: #3A3A3C;
+}
+
+/* Progress Bars & Charts */
+[data-theme="dark"] .goal-progress-bar {
+    background-color: #3A3A3C;
+}
+
+[data-theme="dark"] .chart-container {
+    filter: brightness(1.1);
+}
+
+/* Alerts and Warnings */
+[data-theme="dark"] .storage-warning {
+    background-color: #493403;
+    color: #FFD54F;
+    border-color: #6D4C05;
+}
+
+/* Empty State */
+[data-theme="dark"] .empty-state {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .empty-icon {
+    opacity: 0.7;
+}
