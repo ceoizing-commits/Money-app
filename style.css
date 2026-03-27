@@ -573,3 +573,51 @@ h1, h2, h3 { margin: 0 0 15px 0; font-weight: 600; }
 .ai-danger {
     color: var(--danger-color);
 }
+.time-filter-controls {
+    margin-bottom: 15px;
+}
+
+.time-filter-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.time-filter-btn {
+    padding: 10px 14px;
+    background: var(--bg-color);
+    border: none;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.time-filter-btn.active {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.custom-time-range {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.custom-date-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.custom-date-row input[type="date"] {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+    color: var(--text-primary);
+}
