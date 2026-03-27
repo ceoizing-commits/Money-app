@@ -212,10 +212,10 @@
     <div class="page" id="page-bills">
         <h1>账单明细</h1>
         <div class="filter-controls">
-            <button class="filter-btn active" data-filter="all" onclick="setBillFilter('all')">全部</button>
-            <button class="filter-btn" data-filter="expense" onclick="setBillFilter('expense')">支出</button>
-            <button class="filter-btn" data-filter="income" onclick="setBillFilter('income')">收入</button>
-        </div>
+    <button class="filter-btn active" data-filter="all" onclick="setBillFilter('all', this)">全部</button>
+    <button class="filter-btn" data-filter="expense" onclick="setBillFilter('expense', this)">支出</button>
+    <button class="filter-btn" data-filter="income" onclick="setBillFilter('income', this)">收入</button>
+</div>
         
         <!-- 时间筛选器 -->
         <div class="time-filter-controls">
