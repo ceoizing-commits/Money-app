@@ -87,20 +87,29 @@ function init() {
 
 function setupEventListeners() {
     // Custom date range toggle
-    document.getElementById('time-filter').addEventListener('change', function() {
-        const customRangeDiv = document.getElementById('custom-time-range');
-        if (this.value === 'custom') {
-            customRangeDiv.style.display = 'block';
-            // Set default dates
-            const today = new Date();
-            const start = new Date(today.getFullYear(), today.getMonth(), 1);
-            const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-            
-            document.getElementById('start-date').value = start.toISOString().split('T')[0];
-            document.getElementById('end-date').value = end.toISOString().split('T')[0];
-        } else {
-            customRangeDiv.style.display = 'none';
+  const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    document.getElementById('start-date').value = start.toISOString().split('T')[0];
+    document.getElementById('end-date').value = end.toISOString().split('T')[0];
+
+    document.querySelectorAll('.time-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.time === prefs.timeFilter) {
+            btn.classList.add('active');
         }
+    });
+
+    if (prefs.timeFilter === 'custom') {
+        document.getElementById('custom-time-range').style.display = 'block';
+        if (prefs.customStartDate) {
+            document.getElementById('start-date').value = prefs.customStartDate;
+        }
+        if (prefs.customEndDate) {
+            document.getElementById('end-date').value = prefs.customEndDate;
+        }
+    }
     });
     
     // Set default dates for custom range
@@ -311,12 +320,41 @@ function setBillFilter(filter, btn) {
     renderBills();
 }
 
-function setTimeFilter(timeRange) {
+function setTimeFilter(timeRange, btn) {
     prefs.timeFilter = timeRange;
     savePrefs();
+
+    document.querySelectorAll('.time-filter-btn').forEach(button => {
+        button.classList.remove('active');
+    });
+
+    if (btn) {
+        btn.classList.add('active');
+    }
+
+    const customRangeDiv = document.getElementById('custom-time-range');
+
+    if (timeRange === 'custom') {
+        customRangeDiv.style.display = 'block';
+
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+        if (!document.getElementById('start-date').value) {
+            document.getElementById('start-date').value = start.toISOString().split('T')[0];
+        }
+        if (!document.getElementById('end-date').value) {
+            document.getElementById('end-date').value = end.toISOString().split('T')[0];
+        }
+
+        return;
+    } else {
+        customRangeDiv.style.display = 'none';
+    }
+
     renderBills();
 }
-
 function applyCustomRange() {
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
@@ -970,14 +1008,23 @@ function toggleAIAnalysis() {
     appData.settings.enableAI = !appData.settings.enableAI;
     saveData();
     updateSettingsUI();
-    
-    // Show/hide AI section in stats page
+
     const aiSection = document.getElementById('ai-analysis-section');
+    const insightsContainer = document.getElementById('ai-insights');
+
+    if (!aiSection || !insightsContainer) return;
+
     if (appData.settings.enableAI) {
         aiSection.style.display = 'block';
-        updateAIInsights();
+
+        if (appData.bills.length === 0) {
+            insightsContainer.innerHTML = '<div class="empty-state">先添加几条账单，AI 才能分析。</div>';
+        } else {
+            updateAIInsights();
+        }
     } else {
         aiSection.style.display = 'none';
+        insightsContainer.innerHTML = '';
     }
 }
 
@@ -1081,18 +1128,26 @@ function showToast(msg) {
 // --- AI Analysis Module ---
 function updateAIInsights() {
     if (!appData.settings.enableAI) return;
-    
+
     const insightsContainer = document.getElementById('ai-insights');
     if (!insightsContainer) return;
-    
-    // Clear previous insights
+
+    if (appData.bills.length === 0) {
+        insightsContainer.innerHTML = '<div class="empty-state">暂无账单数据，无法分析。</div>';
+        return;
+    }
+
     insightsContainer.innerHTML = '<div>正在分析您的财务状况...</div>';
-    
-    // Simulate async processing
+
     setTimeout(() => {
-        const insights = generateAIInsights();
-        insightsContainer.innerHTML = insights;
-    }, 500);
+        try {
+            const insights = generateAIInsights();
+            insightsContainer.innerHTML = insights;
+        } catch (error) {
+            console.error('AI 分析失败：', error);
+            insightsContainer.innerHTML = '<div class="empty-state">AI 分析加载失败，请检查控制台报错。</div>';
+        }
+    }, 300);
 }
 
 function generateAIInsights() {
