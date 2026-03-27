@@ -218,22 +218,22 @@
 </div>
         
         <!-- 时间筛选器 -->
-        <div class="time-filter-controls">
-            <select id="time-filter" onchange="setTimeFilter(this.value)">
-                <option value="today">今天</option>
-                <option value="week">本周</option>
-                <option value="month" selected>本月</option>
-                <option value="year">今年</option>
-                <option value="custom">自定义</option>
-            </select>
-            
-            <!-- 自定义时间范围 -->
-            <div id="custom-time-range" style="display: none; margin-top: 10px;">
-                <input type="date" id="start-date">
-                <input type="date" id="end-date">
-                <button class="btn btn-primary" onclick="applyCustomRange()">应用</button>
-            </div>
-        </div>
+        <div class="time-filter-buttons">
+    <button class="time-filter-btn" data-time="today" onclick="setTimeFilter('today', this)">今天</button>
+    <button class="time-filter-btn" data-time="week" onclick="setTimeFilter('week', this)">本周</button>
+    <button class="time-filter-btn active" data-time="month" onclick="setTimeFilter('month', this)">本月</button>
+    <button class="time-filter-btn" data-time="year" onclick="setTimeFilter('year', this)">今年</button>
+    <button class="time-filter-btn" data-time="custom" onclick="setTimeFilter('custom', this)">自定义</button>
+</div>
+
+<div id="custom-time-range" class="custom-time-range" style="display: none;">
+    <div class="custom-date-row">
+        <input type="date" id="start-date">
+        <span>至</span>
+        <input type="date" id="end-date">
+    </div>
+    <button class="btn btn-primary" onclick="applyCustomRange()">应用</button>
+</div>
         
         <!-- 概览统计 -->
         <div class="card" style="margin-top: 20px;">
