@@ -1282,6 +1282,7 @@ function generateRecommendations() {
     
     return recommendations.join('<br>');
 }
+document.addEventListener('DOMContentLoaded', init);
 
 // --- Run ---
 window.addEventListener('DOMContentLoaded', init);
