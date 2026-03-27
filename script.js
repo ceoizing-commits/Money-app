@@ -86,8 +86,7 @@ function init() {
 }
 
 function setupEventListeners() {
-    // Custom date range toggle
-  const today = new Date();
+    const today = new Date();
     const start = new Date(today.getFullYear(), today.getMonth(), 1);
     const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
@@ -100,6 +99,17 @@ function setupEventListeners() {
             btn.classList.add('active');
         }
     });
+
+    if (prefs.timeFilter === 'custom') {
+        document.getElementById('custom-time-range').style.display = 'block';
+        if (prefs.customStartDate) {
+            document.getElementById('start-date').value = prefs.customStartDate;
+        }
+        if (prefs.customEndDate) {
+            document.getElementById('end-date').value = prefs.customEndDate;
+        }
+    }
+}
 
     if (prefs.timeFilter === 'custom') {
         document.getElementById('custom-time-range').style.display = 'block';
